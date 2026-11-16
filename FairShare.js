@@ -1,6 +1,6 @@
 var pluginConfig = {
     name: 'Fair Tuner Sharing',
-    version: '1.0.0',
+    version: '1.0.1',
     author: 'konvlachos',
     frontEndPath: 'FairShare/fairshare.js'
 }

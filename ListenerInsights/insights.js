@@ -19,21 +19,27 @@ window.fmdxSetupTab = window.fmdxSetupTab || function ({ id, title, icon, onShow
     tab.innerHTML = `<h2>${title}</h2><div class="panel-100 p-bottom-20"><div class="kv-box"></div></div>`;
     document.getElementById('plugins-tab').parentNode.appendChild(tab);
     const box = tab.querySelector('.kv-box');
+    let filled = false;
     const show = () => {
+        filled = true;
         nav.querySelectorAll('li').forEach(x => { x.classList.remove('active'); x.setAttribute('aria-selected', 'false'); });
         li.classList.add('active'); li.setAttribute('aria-selected', 'true');
         history.replaceState(null, '', '#' + id);
         document.querySelectorAll('.tab-content').forEach(x => { x.style.display = 'none'; });
-        tab.style.display = '';
+        tab.style.display = 'block';            // the Setup stylesheet hides tabs by default
         onShow(box);
     };
     li.addEventListener('click', e => { e.preventDefault(); show(); });
     li.addEventListener('keydown', e => { if (e.key === 'Enter') show(); });
     window.addEventListener('hashchange', () => { if (location.hash === '#' + id) show(); });
+    // Direct link (/setup#id): the Setup page shows its own first tab while it starts, which
+    // can take a while with many plugins, so keep selecting ours until the page has settled.
     if (location.hash === '#' + id) {
         let n = 0;
-        const t = setInterval(() => { if (!tab.offsetParent) show(); else if (++n > 3) clearInterval(t); }, 300);
-        setTimeout(() => clearInterval(t), 5000);
+        // (the Setup page may make our tab visible itself without filling it, so fill it once in any case)
+        const t = setInterval(() => { if (!tab.offsetParent || !filled) show(); else if (++n > 6) clearInterval(t); }, 300);
+        setTimeout(() => clearInterval(t), 20000);
+        window.addEventListener('load', () => setTimeout(() => { if (location.hash === '#' + id && !tab.offsetParent) show(); }, 300));
     }
     if (!document.getElementById('kv-style')) {
         const st = document.createElement('style');

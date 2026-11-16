@@ -19,21 +19,27 @@ window.fmdxSetupTab = window.fmdxSetupTab || function ({ id, title, icon, onShow
     tab.innerHTML = `<h2>${title}</h2><div class="panel-100 p-bottom-20"><div class="kv-box"></div></div>`;
     document.getElementById('plugins-tab').parentNode.appendChild(tab);
     const box = tab.querySelector('.kv-box');
+    let filled = false;
     const show = () => {
+        filled = true;
         nav.querySelectorAll('li').forEach(x => { x.classList.remove('active'); x.setAttribute('aria-selected', 'false'); });
         li.classList.add('active'); li.setAttribute('aria-selected', 'true');
         history.replaceState(null, '', '#' + id);
         document.querySelectorAll('.tab-content').forEach(x => { x.style.display = 'none'; });
-        tab.style.display = '';
+        tab.style.display = 'block';            // the Setup stylesheet hides tabs by default
         onShow(box);
     };
     li.addEventListener('click', e => { e.preventDefault(); show(); });
     li.addEventListener('keydown', e => { if (e.key === 'Enter') show(); });
     window.addEventListener('hashchange', () => { if (location.hash === '#' + id) show(); });
+    // Direct link (/setup#id): the Setup page shows its own first tab while it starts, which
+    // can take a while with many plugins, so keep selecting ours until the page has settled.
     if (location.hash === '#' + id) {
         let n = 0;
-        const t = setInterval(() => { if (!tab.offsetParent) show(); else if (++n > 3) clearInterval(t); }, 300);
-        setTimeout(() => clearInterval(t), 5000);
+        // (the Setup page may make our tab visible itself without filling it, so fill it once in any case)
+        const t = setInterval(() => { if (!tab.offsetParent || !filled) show(); else if (++n > 6) clearInterval(t); }, 300);
+        setTimeout(() => clearInterval(t), 20000);
+        window.addEventListener('load', () => setTimeout(() => { if (location.hash === '#' + id && !tab.offsetParent) show(); }, 300));
     }
     if (!document.getElementById('kv-style')) {
         const st = document.createElement('style');
@@ -122,13 +128,20 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
         try { a = await api('GET', '/fairshare/admin'); } catch (e) { box.innerHTML = `<div class="kv-empty">Could not load Fair Tuner Sharing (${esc(e.message)}).</div>`; return; }
         const s = a.settings;
         const opt = (name, values, cur, fmt) => values.map(v => `<button data-set="${name}" data-val="${v}" class="${String(v) === String(cur) ? 'kv-on' : ''}">${fmt(v)}</button>`).join('');
+        // A custom value next to the quick choices: number box + Set (shown in the unit the admin thinks in)
+        const custom = (name, cur, min, max, unit, factor) => {
+            const shown = Math.round(cur / factor * 10) / 10;
+            return `<span style="white-space:nowrap"><input type="number" class="kv-num" data-for="${name}" data-factor="${factor}" min="${min}" max="${max}" step="1" value="${shown}"
+                style="width:80px;padding:7px 10px;border-radius:10px;border:0;margin:0 6px 6px 8px"> ${unit}
+                <button data-custom="${name}">Set</button></span>`;
+        };
         box.innerHTML = `<p class="kv-sub">When several listeners are connected, the one who tunes gets a short turn. The others
               see a friendly countdown instead of the frequency jumping around. The admin and your own network can always tune.
              </p>
             <div><button data-set="enabled" data-val="true" class="${s.enabled ? 'kv-on' : ''}">✅ On</button><button data-set="enabled" data-val="false" class="${s.enabled ? '' : 'kv-on'}">Off</button></div>
-            <h3>A turn lasts (after the last tune)</h3><div>${opt('turnSeconds', [60, 120, 180, 300], s.turnSeconds, v => v / 60 + ' min')}</div>
-            <h3>Longest turn in a row</h3><div>${opt('maxTurnMinutes', [5, 10, 15, 30], s.maxTurnMinutes, v => v + ' min')}</div>
-            <h3>Start sharing from</h3><div>${opt('minListeners', [2, 3, 4], s.minListeners, v => v + ' listeners')}</div>
+            <h3>A turn lasts (after the last tune)</h3><div>${opt('turnSeconds', [60, 120, 180, 300], s.turnSeconds, v => v / 60 + ' min')}${custom('turnSeconds', s.turnSeconds, 1, 30, 'min', 60)}</div>
+            <h3>Longest turn in a row</h3><div>${opt('maxTurnMinutes', [5, 10, 15, 30], s.maxTurnMinutes, v => v + ' min')}${custom('maxTurnMinutes', s.maxTurnMinutes, 2, 120, 'min', 1)}</div>
+            <h3>Start sharing from</h3><div>${opt('minListeners', [2, 3, 4], s.minListeners, v => v + ' listeners')}${custom('minListeners', s.minListeners, 2, 1000, 'listeners', 1)}</div>
             <h3>Since the last restart</h3>
             <div class="kv-cards"><div class="kv-card"><b>${a.listeners}</b>listening now</div>
               <div class="kv-card"><b>${a.stats.turns}</b>turns given</div>
@@ -141,11 +154,27 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
         window.fmdxSetupTab({ id: 'kv-fairshare', title: 'Fair Tuner Sharing', icon: 'fa-people-arrows', onShow: box => {
             if (!wired) {
                 wired = true;
-                box.addEventListener('click', async e => {
-                    const b = e.target.closest('button[data-set]');
+                const send = async (name, value) => {
+                    try { await api('POST', `/fairshare/settings?${name}=${encodeURIComponent(value)}`); load(box); } catch (err) { alert('Fair Tuner Sharing: ' + err.message); }
+                };
+                const fromBox = name => {
+                    const inp = box.querySelector(`input.kv-num[data-for="${name}"]`);
+                    const v = Number(inp.value), min = Number(inp.min), max = Number(inp.max);
+                    if (!Number.isFinite(v) || v < min || v > max) { alert(`Please enter a number from ${min} to ${max}.`); inp.focus(); return; }
+                    send(name, Math.round(v * Number(inp.dataset.factor)));
+                };
+                box.addEventListener('click', e => {
+                    const b = e.target.closest('button[data-set], button[data-custom]');
                     if (!b) return;
                     e.preventDefault();
-                    try { await api('POST', `/fairshare/settings?${b.dataset.set}=${b.dataset.val}`); load(box); } catch (err) { alert('Fair Tuner Sharing: ' + err.message); }
+                    if (b.dataset.custom) fromBox(b.dataset.custom); else send(b.dataset.set, b.dataset.val);
+                });
+                // Enter in a number box = Set (and keep FM-DX from seeing the key)
+                box.addEventListener('keydown', e => {
+                    const inp = e.target.closest('input.kv-num');
+                    if (!inp) return;
+                    e.stopPropagation();
+                    if (e.key === 'Enter') { e.preventDefault(); fromBox(inp.dataset.for); }
                 });
             }
             load(box);

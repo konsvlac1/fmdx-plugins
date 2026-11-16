@@ -82,7 +82,7 @@ router.post('/fairshare/settings', admin, (req, res) => {
     if (q.enabled !== undefined) conf.enabled = q.enabled === 'true';
     if (q.turnSeconds !== undefined) conf.turnSeconds = Math.min(1800, Math.max(30, Number(q.turnSeconds) || DEFAULTS.turnSeconds));
     if (q.maxTurnMinutes !== undefined) conf.maxTurnMinutes = Math.min(120, Math.max(2, Number(q.maxTurnMinutes) || DEFAULTS.maxTurnMinutes));
-    if (q.minListeners !== undefined) conf.minListeners = Math.min(20, Math.max(2, Number(q.minListeners) || DEFAULTS.minListeners));
+    if (q.minListeners !== undefined) conf.minListeners = Math.min(1000, Math.max(2, Number(q.minListeners) || DEFAULTS.minListeners));
     saveConf();
     res.json({ settings: conf });
 });

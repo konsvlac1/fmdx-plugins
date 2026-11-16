@@ -8,7 +8,7 @@ Three free plugins that help you run a public FM-DX tuner:
 |---|---|
 | 📒 **Station Log** | Writes down every station your tuner receives, automatically: frequency, PI, station name, place, best signal, first and last heard. You get a list of "what can be received here", with search and Excel download. You can also show the list to your listeners. |
 | 📊 **Listener Insights** | Shows how your server is used: visitors per day, busiest hours and days, most listened stations, countries and how long people stay. Optional weekly summary in Telegram. No IP addresses are stored. |
-| 🎧 **Fair Tuner Sharing** | When several listeners are connected, the one who tunes gets a short turn (2 minutes after the last tune, at most 10 minutes). The others see a friendly countdown instead of the frequency jumping around. You (the admin) can always tune. |
+| 🎧 **Fair Tuner Sharing** | When several listeners are connected, the one who tunes gets a short turn (2 minutes after the last tune, at most 10 minutes). The others see a friendly countdown instead of the frequency jumping around. You (the admin) can always tune. In its Setup tab you choose the turn length, the longest turn and from how many listeners sharing starts: quick buttons or any number you like (up to 1000 listeners). |
 
 Each plugin gets its own tab in the **Setup** page (admin panel).
 
