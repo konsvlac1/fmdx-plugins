@@ -119,7 +119,7 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
 
     function start() {
         let wired = false;
-        window.fmdxSetupTab({ id: 'kv-insights', title: 'Listener Insights', icon: 'fa-chart-column', onShow: box => {
+        window.fmdxSetupTab({ id: 'insights', title: 'Listener Insights', icon: 'fa-chart-column', onShow: box => {
             if (!wired) {
                 wired = true;
                 box.addEventListener('click', e => { const b = e.target.closest('button[data-range]'); if (b) { e.preventDefault(); range = Number(b.dataset.range); load(box); } });

@@ -130,7 +130,7 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
 
     function start() {
         let wired = false;
-        window.fmdxSetupTab({ id: 'kv-stationlog', title: 'Station Log', icon: 'fa-book', onShow: box => { if (!wired) { wire(box); wired = true; } load(box); } });
+        window.fmdxSetupTab({ id: 'stationlog', title: 'Station Log', icon: 'fa-book', onShow: box => { if (!wired) { wire(box); wired = true; } load(box); } });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

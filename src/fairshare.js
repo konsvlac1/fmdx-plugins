@@ -74,7 +74,7 @@
 
     function setupPage() {
         let wired = false;
-        window.fmdxSetupTab({ id: 'kv-fairshare', title: 'Fair Tuner Sharing', icon: 'fa-people-arrows', onShow: box => {
+        window.fmdxSetupTab({ id: 'fairshare', title: 'Fair Tuner Sharing', icon: 'fa-people-arrows', onShow: box => {
             if (!wired) {
                 wired = true;
                 const send = async (name, value) => {
