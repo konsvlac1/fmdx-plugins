@@ -30,10 +30,11 @@ const save = t => fs.writeFileSync(indexJs, crlf ? t.replace(/\n/g, '\r\n') : t)
 
 // Chat Filter: one line in server/chat.js, just before a message is saved and shown to everyone
 const chatJs = path.join(app, 'server', 'chat.js');
-const CHAT_HOOK = "            // Plugin chat filters (e.g. Chat Filter): a filter returning false drops the message\n            if (Array.isArray(global.fmdxChatFilters) && !global.fmdxChatFilters.every(f => { try { return f({ ws, request, message: messageData, isAdmin: request.session?.isAdminAuthenticated === true }) !== false; } catch (e) { return true; } })) return;\n\n";
+const OLD_CHAT_HOOKS = ["            // Plugin chat filters (e.g. Chat Filter): a filter returning false drops the message\n            if (Array.isArray(global.fmdxChatFilters) && !global.fmdxChatFilters.every(f => { try { return f({ ws, request, message: messageData, isAdmin: request.session?.isAdminAuthenticated === true }) !== false; } catch (e) { return true; } })) return;\n\n"];
+const CHAT_HOOK = "            // Plugin chat filters (e.g. Chat Filter): a filter returning false drops the message.\n            // Right after a restart, until Chat Filter has started, messages are refused instead of sent unchecked.\n            if (!Array.isArray(global.fmdxChatFilters) && (serverConfig.plugins || []).some(p => /^ChatFilter\\//.test(p))) { ws.send(JSON.stringify({ nickname: '🛡️ Chat Filter', message: 'The chat is starting, please try again in a few seconds.', time: '', id: -1 })); return; }\n            if (Array.isArray(global.fmdxChatFilters) && !global.fmdxChatFilters.every(f => { try { return f({ ws, request, message: messageData, isAdmin: request.session?.isAdminAuthenticated === true }) !== false; } catch (e) { return true; } })) return;\n\n";
 const CHAT_ANCHOR = /( *)storage\.chatHistory\.push\(messageData\);/;
 const chatRaw = fs.existsSync(chatJs) ? fs.readFileSync(chatJs, 'utf8') : '', chatCrlf = chatRaw.includes('\r\n');
-const chatSrc = chatRaw.replace(/\r\n/g, '\n');
+let chatSrc = chatRaw.replace(/\r\n/g, '\n');
 const saveChat = t => fs.writeFileSync(chatJs, chatCrlf ? t.replace(/\n/g, '\r\n') : t);
 
 if (uninstall) {
@@ -42,7 +43,7 @@ if (uninstall) {
         if (fs.existsSync(x)) { fs.rmSync(x, { recursive: true, force: true }); console.log('  - removed plugins/' + f); }
     }
     if (plugins.includes('FairShare') && src.includes(HOOK)) { save(src.split(HOOK).join('')); console.log('  - removed the plugin command filter line from server/index.js'); }
-    if (plugins.includes('ChatFilter') && chatSrc.includes(CHAT_HOOK)) { saveChat(chatSrc.split(CHAT_HOOK).join('')); console.log('  - removed the plugin chat filter line from server/chat.js'); }
+    if (plugins.includes('ChatFilter') && [CHAT_HOOK, ...OLD_CHAT_HOOKS].some(h => chatSrc.includes(h))) { saveChat([CHAT_HOOK, ...OLD_CHAT_HOOKS].reduce((t, h) => t.split(h).join(''), chatSrc)); console.log('  - removed the plugin chat filter line from server/chat.js'); }
     console.log('\n  Done. Restart FM-DX Webserver.\n');
     process.exit(0);
 }
@@ -64,7 +65,9 @@ if (plugins.includes('FairShare')) {
     }
 }
 if (plugins.includes('ChatFilter')) {
-    if (chatSrc.includes(CHAT_HOOK)) console.log('  ✓ server/chat.js already has the plugin chat filter line');
+    const oldHook = OLD_CHAT_HOOKS.find(h => chatSrc.includes(h));
+    if (oldHook) { chatSrc = chatSrc.replace(oldHook, CHAT_HOOK); saveChat(chatSrc); console.log('  ✓ server/chat.js: plugin chat filter line updated'); }
+    else if (chatSrc.includes(CHAT_HOOK)) console.log('  ✓ server/chat.js already has the plugin chat filter line');
     else if (!CHAT_ANCHOR.test(chatSrc)) console.log('  ! server/chat.js looks different (made for FM-DX 1.4.x) and was not changed: Chat Filter will do nothing.');
     else {
         const backup = chatJs + '.before-chat-filter';

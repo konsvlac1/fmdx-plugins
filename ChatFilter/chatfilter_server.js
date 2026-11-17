@@ -184,7 +184,7 @@ function adminData() {
     const { muted: _m, ...settings } = conf;
     // "bad": the bad words in each listed message/nickname, so the Setup tab can hide them as ****
     const bad = e => [...words.check(e.message, compiled).found, ...words.check(e.nickname, compiled).found].map(f => f.word);
-    return { settings, builtin: words.BUILTIN, stats, muted, log: log.slice(-100).reverse().map(e => ({ ...e, bad: bad(e) })), hookInstalled: hookInstalled() };
+    return { settings, builtin: words.BUILTIN.filter(w => !w.startsWith('!')), stats, muted, log: log.slice(-100).reverse().map(e => ({ ...e, bad: bad(e) })), hookInstalled: hookInstalled() };
 }
 
 router.get('/chatfilter/admin', admin, (req, res) => res.json(adminData()));

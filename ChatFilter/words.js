@@ -1,6 +1,7 @@
 // Chat Filter: the word list and the matching (no FM-DX dependencies, so it can be tested alone).
 //
-// A list entry matches a whole word; an entry ending in * matches every word that starts with it.
+// A list entry matches a whole word; an entry ending in * matches every word that starts with it;
+// an entry starting with ! is an exception: that word is never blocked (γάμος = wedding, under γαμο*).
 // Entries written in Greek also catch Greeklish (malakas, gamw, pou$th...), and every entry
 // catches CAPITALS, missing accents, repeated letters (fuuuck), symbols (sh!t, f@ck) and
 // spaced-out letters (f u c k, μ.α.λ.α.κ.α).
@@ -15,6 +16,9 @@ const BUILTIN = [
     'μαλακα', 'μαλακας', 'μαλακες', 'μαλακισμενε', 'μαλακισμενο', 'μαλακισμενη', 'μαλακισμενοι', 'παλιομαλακα',
     'γαμω', 'γαμωτο', 'γαμωσταυρο', 'γαμησου', 'γαμησε', 'γαμησετε', 'γαμιεσαι', 'γαμιεστε', 'γαμιεται',
     'γαμημενε', 'γαμημενο', 'γαμημενη', 'γαμιολη*', 'γαμηθειτε', 'γαμηθεις', 'γαμηδια', 'γαμηδι',
+    'γαμω*', 'γαμο*', 'γαμησ*', 'γαμιε*', 'γαμημεν*',
+    // normal words that start like the ones above (wedding, marital...)
+    '!γαμος', '!γαμου', '!γαμο', '!γαμοι', '!γαμων', '!γαμους', '!γαμοπιλαφο', '!γαμοπιλαφα',
     'πουτανα*', 'πουτανες', 'πουτανακι', 'πουτανιαρ*', 'πουστη', 'πουστης', 'πουστηδες', 'πουστρα', 'πουστια',
     'αρχιδι', 'αρχιδια', 'αρχιδα', 'αρχιδαρα', 'μουνι', 'μουνια', 'μουνο', 'μουναρα',
     'καριολη', 'καριολης', 'καριολα', 'καριολια', 'καργιολη', 'καργιολα', 'καργιολης',
@@ -49,11 +53,12 @@ function compile(list) {
     for (const raw of list || []) {
         const w = String(raw).trim();
         if (!w) continue;
+        const except = w.startsWith('!');
         const prefix = w.endsWith('*');
-        const word = prefix ? w.slice(0, -1) : w;
+        const word = (prefix ? w.slice(0, -1) : w).replace(/^!/, '');
         if (!word) continue;
         const isGreek = GREEK.test(word);
-        out.push({ entry: w, prefix, isGreek, form: isGreek ? greek(word) : plain(word) });
+        out.push({ entry: w, prefix, except, isGreek, form: isGreek ? greek(word) : plain(word) });
     }
     return out;
 }
@@ -87,12 +92,15 @@ function tokens(text) {
 }
 
 function hit(tok, compiled) {
-    let p = null, g = null;
+    let p = null, g = null, found = null;
     for (const e of compiled) {
         const f = e.isGreek ? (g = g || greek(tok.w)) : (p = p || plain(tok.w));
-        if (e.prefix ? f.startsWith(e.form) : f === e.form) return e.entry;
+        if (e.prefix ? f.startsWith(e.form) : f === e.form) {
+            if (e.except) return null;          // a normal word: never blocked
+            found = found || e.entry;
+        }
     }
-    return null;
+    return found;
 }
 
 // -> { found: [ { word, entry } ], masked }
