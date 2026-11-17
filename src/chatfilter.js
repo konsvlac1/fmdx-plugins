@@ -49,21 +49,18 @@
             <div><button data-k="blockRepeats" data-v="${!s.blockRepeats}" class="${on('blockRepeats', true)}">${s.blockRepeats ? '✅' : '⬜'} Stop the same message sent again (5 min)</button>
                  <button data-k="blockLinks" data-v="${!s.blockLinks}" class="${on('blockLinks', true)}">${s.blockLinks ? '✅' : '⬜'} Block links (spam)</button>
                  <button data-k="checkNicknames" data-v="${!s.checkNicknames}" class="${on('checkNicknames', true)}">${s.checkNicknames ? '✅' : '⬜'} Check nicknames too</button>
-                 <button data-k="useBuiltin" data-v="${!s.useBuiltin}" class="${on('useBuiltin', true)}">${s.useBuiltin ? '✅' : '⬜'} Use the built-in word list (${a.builtin.length})</button></div>
+</div>
             <h3>Mute after blocked messages</h3>
             <div>${[0, 2, 3, 5].map(v => `<button data-k="muteAfter" data-v="${v}" class="${on('muteAfter', v)}">${v ? v + ' blocked' : 'Never'}</button>`).join('')}
                  <span style="white-space:nowrap;margin-left:8px">for ${[10, 60, 1440].map(v => `<button data-k="muteMinutes" data-v="${v}" class="${on('muteMinutes', v)}">${v < 60 ? v + ' min' : v < 1440 ? '1 hour' : '1 day'}</button>`).join('')}</span></div>
             <h3>Blocked words</h3>
-            <p class="kv-sub">Any message with one of these words is stopped. Add a word, or press ✕ to remove one.
-              A word ending in * also blocks longer words that start with it (e.g. <code>troll*</code>). Greek words also catch Greeklish.</p>
+            <p class="kv-sub">Any message with one of these words is stopped. Add your own words below; you can remove only the words you added.
+              The 🔒 built-in bad words always stay. A word ending in * also blocks longer words that start with it (e.g. <code>troll*</code>). Greek words also catch Greeklish.</p>
             <div><input class="cf-add" type="text" maxlength="60" placeholder="add a word" style="width:220px;max-width:100%;padding:7px 12px;border-radius:10px;border:0;margin:0 6px 6px 0"><button data-act="add">➕ Add</button></div>
-            ${(() => {
-                const own = s.words, bi = s.useBuiltin ? a.builtin.filter(w => !s.removed.includes(w)) : [];
-                const chip = (w, mine) => `<span class="cf-chip${mine ? ' cf-mine' : ''}">${esc(w)}<button data-remove="${esc(w)}" title="Remove">✕</button></span>`;
-                return `<div class="cf-chips">${own.map(w => chip(w, true)).join('')}${bi.map(w => chip(w, false)).join('')}${own.length + bi.length ? '' : '<span class="kv-empty">No words: nothing is blocked.</span>'}</div>
-                  <p class="kv-sub" style="margin-top:6px">${own.length} added by you (highlighted) + ${bi.length} built-in.</p>
-                  ${s.useBuiltin && s.removed.length ? `<details><summary style="cursor:pointer;opacity:.8">Removed built-in words (${s.removed.length})</summary><div class="cf-chips" style="margin-top:6px">${s.removed.map(w => `<span class="cf-chip cf-off">${esc(w)}<button data-add="${esc(w)}" title="Block it again">↩</button></span>`).join('')}</div></details>` : ''}`;
-            })()}
+            <h3>Your words (${s.words.length})</h3>
+            <div class="cf-chips">${s.words.map(w => `<span class="cf-chip cf-mine">${esc(w)}<button data-remove="${esc(w)}" title="Remove">✕</button></span>`).join('') || '<span class="kv-empty">None yet.</span>'}</div>
+            <details style="margin-top:10px"><summary style="cursor:pointer;opacity:.8">🔒 Built-in bad words (${a.builtin.length}, always on)</summary>
+              <div class="cf-chips" style="margin-top:6px">${a.builtin.map(w => `<span class="cf-chip" style="padding-right:10px">${esc(w)}</span>`).join('')}</div></details>
             ${s.blockLinks ? `<h3>Allowed sites (links to these are OK)</h3>
             <p class="kv-sub">Links to this site are always allowed. A site here also allows its sub-sites (fmdx.org → maps.fmdx.org).</p>
             <div><input class="cf-site" type="text" maxlength="100" placeholder="e.g. fmdx.org" style="width:220px;max-width:100%;padding:7px 12px;border-radius:10px;border:0;margin:0 6px 6px 0"><button data-act="addsite">➕ Add</button></div>
@@ -120,7 +117,7 @@
                         if (w) run('/chatfilter/settings', { addSite: w });
                     } else if (b.dataset.rmsite) run('/chatfilter/settings', { removeSite: b.dataset.rmsite });
                     else if (b.dataset.remove) run('/chatfilter/settings', { remove: b.dataset.remove });
-                    else if (b.dataset.add) run('/chatfilter/settings', { add: b.dataset.add });
+
                     else if (b.dataset.act === 'notice') run('/chatfilter/settings', { notice: box.querySelector('.cf-notice').value });
                     else if (b.dataset.act === 'clearlog') { if (confirm('Clear the list of stopped messages?')) run('/chatfilter/clearlog'); }
                     else if (b.dataset.act === 'test') {

@@ -18,13 +18,14 @@ const CONF = path.join(__dirname, '../../plugins_configs/chatfilter.json');
 const LOG = path.join(__dirname, '../../plugins_configs/chatfilter-log.json');
 const CHAT_JS = path.join(__dirname, '../../server/chat.js');
 const DEFAULTS = {
-    enabled: true, mode: 'block', useBuiltin: true, words: [], removed: [], checkNicknames: true, blockRepeats: true,
+    enabled: true, mode: 'block', words: [], checkNicknames: true, blockRepeats: true,
     muteAfter: 3, muteMinutes: 10, blockLinks: true, allowSites: ['fmdx.org', 'fmlist.org', 'fmscan.org'],
     notice: 'Your message was not sent: please keep the chat friendly. / Το μήνυμα δεν στάλθηκε: παρακαλούμε, ευγένεια στο chat.',
     muted: {}
 };
 let conf = { ...DEFAULTS };
 try { conf = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(CONF, 'utf8')) }; } catch (_) { saveConf(); }
+delete conf.useBuiltin; delete conf.removed;     // older versions could switch built-in words off
 function saveConf() { try { fs.mkdirSync(path.dirname(CONF), { recursive: true }); fs.writeFileSync(CONF, JSON.stringify(conf, null, 2)); } catch (_) { /* ignore */ } }
 
 let log = [];
@@ -36,7 +37,8 @@ function saveLog() {
 }
 
 let compiled = [];
-const builtinOn = () => conf.useBuiltin ? words.BUILTIN.filter(w => !conf.removed.includes(w)) : [];
+// the built-in bad words are always on and cannot be removed (only your own words can)
+const builtinOn = () => words.BUILTIN;
 const rebuild = () => { compiled = words.compile([...builtinOn(), ...conf.words]); };
 rebuild();
 
@@ -174,32 +176,26 @@ router.post('/chatfilter/settings', admin, (req, res) => {
     const b = body(req);
     if (typeof b.enabled === 'boolean') conf.enabled = b.enabled;
     if (b.mode === 'block' || b.mode === 'hide') conf.mode = b.mode;
-    for (const k of ['useBuiltin', 'checkNicknames', 'blockRepeats', 'blockLinks']) if (typeof b[k] === 'boolean') conf[k] = b[k];
+    for (const k of ['checkNicknames', 'blockRepeats', 'blockLinks']) if (typeof b[k] === 'boolean') conf[k] = b[k];
     if (b.muteAfter !== undefined) conf.muteAfter = Math.min(20, Math.max(0, Math.round(Number(b.muteAfter)) || 0));
     if (b.muteMinutes !== undefined) conf.muteMinutes = Math.min(10080, Math.max(1, Math.round(Number(b.muteMinutes)) || DEFAULTS.muteMinutes));
     if (typeof b.notice === 'string') conf.notice = b.notice.trim().slice(0, 300) || DEFAULTS.notice;
     const tidy = l => [...new Set(l.map(w => String(w).trim().toLowerCase().slice(0, 60)).filter(Boolean))].slice(0, 2000);
     if (Array.isArray(b.words)) conf.words = tidy(b.words);
-    if (Array.isArray(b.removed)) conf.removed = tidy(b.removed).filter(w => words.BUILTIN.includes(w));
-    // one word at a time: { add: 'word' } / { remove: 'word' }. Matching is by meaning, not spelling:
-    // removing "malakas" also switches off the built-in "μαλακας"; adding a word that is already
-    // blocked adds nothing; adding a removed built-in word switches it back on.
-    const blocks = (entry, w) => words.check(w.replace(/\*$/, ''), words.compile([entry])).found.length > 0;
+    // one word at a time: { add: 'word' } / { remove: 'word' }. A word that is already blocked
+    // (built-in or yours, in any spelling: malakas = μαλακας) is not added twice. Only your own
+    // words can be removed; the built-in bad words always stay.
     if (typeof b.add === 'string' && b.add.trim()) {
         const w = b.add.trim().toLowerCase().slice(0, 60);
-        const back = conf.removed.filter(x => x === w || blocks(x, w));
-        if (back.length) conf.removed = conf.removed.filter(x => !back.includes(x));
-        rebuild();
         if (!conf.words.includes(w) && (w.endsWith('*') || !words.check(w, compiled).found.length)) conf.words.push(w);
+    }
+    if (typeof b.remove === 'string' && b.remove.trim()) {
+        const w = b.remove.trim().toLowerCase();
+        conf.words = conf.words.filter(x => x !== w);
     }
     const site = x => String(x).trim().toLowerCase().replace(/^https?:\/\//, '').split(/[/:?#\s]/)[0].replace(/^www\./, '').slice(0, 100);
     if (typeof b.addSite === 'string' && site(b.addSite).includes('.') && !conf.allowSites.includes(site(b.addSite))) conf.allowSites.push(site(b.addSite));
     if (typeof b.removeSite === 'string') conf.allowSites = conf.allowSites.filter(x => x !== site(b.removeSite));
-    if (typeof b.remove === 'string' && b.remove.trim()) {
-        const w = b.remove.trim().toLowerCase();
-        conf.words = conf.words.filter(x => x !== w && !blocks(x, w));
-        for (const x of words.BUILTIN) if ((x === w || blocks(x, w)) && !conf.removed.includes(x)) conf.removed.push(x);
-    }
     saveConf();
     rebuild();
     res.json(adminData());
