@@ -1,6 +1,6 @@
 var pluginConfig = {
     name: 'Chat Filter',
-    version: '1.5.3',
+    version: '1.5.4',
     author: 'konvlachos',
     frontEndPath: 'ChatFilter/chatfilter.js'
 }

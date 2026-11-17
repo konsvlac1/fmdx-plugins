@@ -2,7 +2,9 @@
 //
 // A list entry matches a whole word; an entry ending in * matches every word that starts with it;
 // an entry starting with ! is an exception: that word is never blocked (γάμος = wedding, under γαμο*);
-// an entry with spaces is a phrase: those words in a row (each word may end in *).
+// an entry with spaces is a phrase: those words in a row (each word may end in *); a phrase ending in $
+// only counts at the end of a message that is not a question ("Νεκτάριε τον παίρνεις" is stopped,
+// "Τον ΣΚΑΪ τον παίρνεις;" and "τον παίρνεις τηλέφωνο" are not). "ρε", "βρε", "μωρέ" after it are ignored.
 // Entries written in Greek also catch Greeklish (malakas, gamw, pou$th...), and every entry
 // catches CAPITALS, missing accents, repeated letters (fuuuck), symbols (sh!t, f@ck) and
 // spaced-out letters (f u c k, μ.α.λ.α.κ.α).
@@ -58,6 +60,10 @@ const BUILTIN = [
     'να πας στο διαολο', 'στο διαολο να πας', 'πηγαινε στο διαολο', 'να χαθεις', 'να ψοφησεις', 'να πεθανεις', 'να πνιγεις',
     'χαθειτε ρε', 'χασου ρε', 'πνιξου ρε', 'ψοφα ρε', 'σκασε ρε', 'βγαλε το σκασμο', 'κλεισε το στομα σου', 'κλεισε το ρημαδι',
     'θα σε σκοτωσω', 'θα σε σφαξω', 'θα σε πνιξω', 'στον κωλο σου', 'στα παπαρια μου', 'παπαρια', 'παπαριες', 'φτου σου',
+    // sexual insults that are also everyday words: only at the end of a message that is not a question
+    'τον παιρνεις $', 'τον παιρνει $', 'τον παιρνετε $', 'τον παιρνουν $', 'τον παιρνεις στον κωλο', 'να τον παρεις $', 'παρ τον $', 'παρτον $',
+    'τον τρως $', 'τον τρωει $', 'τον τρωτε $', 'σου τον βαζω $', 'θα σου τον βαλω $', 'σου τον εχω $', 'μου τον παιζεις $', 'τον παιζεις $',
+    'παρε μου τον $', 'γλειψε μου τον', 'γλειψε τον $', 'πιασε τον $', 'πιασ τον $',
     // English insults and phrases
     'idiot', 'idiots', 'moron*', 'dumbass*', 'jackass*', 'douche*', 'scumbag*',
     'go to hell', 'shut up', 'shut the hell up', 'stfu', 'go die', 'kill yourself', 'drop dead', 'piss off',
@@ -133,9 +139,10 @@ function compile(list) {
     for (const raw of list || []) {
         const w = String(raw).trim().replace(/\s+/g, ' ');
         if (!w) continue;
-        if (w.includes(' ') && !w.startsWith('!')) {           // a phrase
-            const parts = compile(w.split(' ')).filter(x => !x.except);
-            if (parts.length > 1) out.push({ entry: w, phrase: parts });
+        if ((w.includes(' ') || w.endsWith('$')) && !w.startsWith('!')) {           // a phrase
+            const atEnd = w.endsWith('$');
+            const parts = compile(w.replace(/\s*\$$/, '').split(' ')).filter(x => !x.except);
+            if (parts.length > 1 || (atEnd && parts.length)) out.push({ entry: w, phrase: parts, atEnd });
             continue;
         }
         const except = w.startsWith('!');
@@ -193,6 +200,7 @@ function hit(tok, compiled) {
     return found;
 }
 
+const FILLER = new Set(['ρε', 'βρε', 'μωρε', 'μωρη', 're', 'vre', 'more'].map(x => greek(x)));
 const partHit = (part, w) => same(runs(part.isGreek ? greek(w) : plain(w)), part.form, part.prefix);
 
 // -> { found: [ { word, entry } ], masked }
@@ -206,9 +214,21 @@ function check(text, compiled) {
     }
     // phrases: the plain words of the message, in order
     const words1 = toks.words;
+    // for phrases that only count at the end: drop "ρε/βρε/μωρέ" at the end, and questions never count
+    let last = words1.length;
+    while (last > 0 && FILLER.has(greek(words1[last - 1].w))) last--;
+    const question = /[?;\u037e]\s*[^\p{L}\p{N}]*$/u.test(s);
     for (const e of compiled) {
         if (!e.phrase) continue;
         const n = e.phrase.length;
+        if (e.atEnd) {
+            const i = last - n;
+            if (question || i < 0) continue;
+            let ok = true;
+            for (let k = 0; k < n && ok; k++) ok = partHit(e.phrase[k], words1[i + k].w);
+            if (ok) found.push({ word: s.slice(words1[i].start, words1[last - 1].end), entry: e.entry, start: words1[i].start, end: words1[last - 1].end });
+            continue;
+        }
         for (let i = 0; i + n <= words1.length; i++) {
             let ok = true;
             for (let k = 0; k < n && ok; k++) ok = partHit(e.phrase[k], words1[i + k].w);
