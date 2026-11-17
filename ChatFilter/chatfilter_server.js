@@ -237,7 +237,12 @@ router.post('/chatfilter/unmute', admin, (req, res) => {
     res.json(adminData());
 });
 // "Fix it now" in the Setup tab: adds the chat line to server/chat.js (same as install.js)
+// Changes to FM-DX itself only from this server's own page (no forged requests from other sites)
+function ownPage(req) {
+    try { return [req.headers['x-forwarded-host'], req.headers.host].filter(Boolean).map(h => String(h).split(',')[0].trim().toLowerCase()).includes(new URL(req.headers.origin || req.headers.referer).host.toLowerCase()); } catch (_) { return false; }
+}
 router.post('/chatfilter/installhook', admin, (req, res) => {
+    if (!ownPage(req)) return res.status(403).json({ error: 'This must come from the server\'s own Setup page.' });
     let result;
     try { result = chatHook.install(CHAT_JS); } catch (e) { return res.status(500).json({ error: 'Could not change server/chat.js: ' + e.message }); }
     if (result === 'unknown') return res.status(409).json({ error: 'server/chat.js looks different (Chat Filter is made for FM-DX 1.4.x), so it was not changed.' });

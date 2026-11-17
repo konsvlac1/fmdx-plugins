@@ -22,11 +22,8 @@ if (!dir) fail('Tell me where FM-DX Webserver is, for example:\n\n    node insta
 const app = path.resolve(dir), indexJs = path.join(app, 'server', 'index.js'), pdir = path.join(app, 'plugins');
 if (!fs.existsSync(indexJs)) fail(`"${app}" is not an FM-DX Webserver folder (server/index.js not found).`);
 
-const HOOK = "        // Plugin command filters (e.g. Fair Tuner Sharing): a filter returning false drops the command\n        if (Array.isArray(global.fmdxCommandFilters) && !global.fmdxCommandFilters.every(f => { try { return f({ ws, request, command, isAdmin: isAdminAuthenticated }) !== false; } catch (e) { return true; } })) return;\n\n";
-const ANCHOR = /( *)if \(\(serverConfig\.publicTuner && !serverConfig\.lockToAdmin\)[^\n]*\n\s*output\.write\(`\$\{command\}\\n`\);/;
-const raw = fs.readFileSync(indexJs, 'utf8'), crlf = raw.includes('\r\n');
-let src = raw.replace(/\r\n/g, '\n');
-const save = t => fs.writeFileSync(indexJs, crlf ? t.replace(/\n/g, '\r\n') : t);
+// Fair Tuner Sharing: one line in server/index.js (see FairShare/hook.js)
+const fairHook = require('./FairShare/hook');
 
 // Chat Filter: one line in server/chat.js (see ChatFilter/hook.js)
 const chatJs = path.join(app, 'server', 'chat.js');
@@ -37,7 +34,7 @@ if (uninstall) {
         const x = path.join(pdir, f);
         if (fs.existsSync(x)) { fs.rmSync(x, { recursive: true, force: true }); console.log('  - removed plugins/' + f); }
     }
-    if (plugins.includes('FairShare') && src.includes(HOOK)) { save(src.split(HOOK).join('')); console.log('  - removed the plugin command filter line from server/index.js'); }
+    if (plugins.includes('FairShare') && fairHook.uninstall(indexJs)) console.log('  - removed the plugin command filter line from server/index.js');
     if (plugins.includes('ChatFilter') && chatHook.uninstall(chatJs)) console.log('  - removed the plugin chat filter line from server/chat.js');
     console.log('\n  Done. Restart FM-DX Webserver.\n');
     process.exit(0);
@@ -50,14 +47,10 @@ for (const p of plugins) {
     console.log(`  ✓ ${p} copied to plugins/${p}`);
 }
 if (plugins.includes('FairShare')) {
-    if (src.includes(HOOK)) console.log('  ✓ server/index.js already has the plugin command filter line');
-    else if (!ANCHOR.test(src)) console.log('  ! ' + 'this FM-DX version looks different (made for FM-DX 1.4.x); server/index.js was not changed.\n  Station Log and Listener Insights work anyway; Fair Tuner Sharing will do nothing.');
-    else {
-        const backup = indexJs + '.before-plugin-filter';
-        if (!fs.existsSync(backup)) fs.copyFileSync(indexJs, backup);
-        save(src.replace(ANCHOR, m => HOOK + m));
-        console.log('  ✓ server/index.js: plugin command filter line added (backup: server/index.js.before-plugin-filter)');
-    }
+    const r = fairHook.install(indexJs);
+    if (r === 'already') console.log('  ✓ server/index.js already has the plugin command filter line');
+    else if (r === 'unknown') console.log('  ! this FM-DX version looks different (made for FM-DX 1.4.x); server/index.js was not changed.\n  Station Log and Listener Insights work anyway; Fair Tuner Sharing will do nothing.');
+    else console.log('  ✓ server/index.js: plugin command filter line added (backup: server/index.js.before-plugin-filter)');
 }
 if (plugins.includes('ChatFilter')) {
     const r = chatHook.install(chatJs);

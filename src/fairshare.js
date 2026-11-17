@@ -58,7 +58,11 @@
                 style="width:80px;padding:7px 10px;border-radius:10px;border:0;margin:0 6px 6px 8px"> ${unit}
                 <button data-custom="${name}">Set</button></span>`;
         };
-        box.innerHTML = `<p class="kv-sub">When several listeners are connected, the one who tunes gets a short turn. The others
+        const hookNote = a.hookInstalled
+            ? (a.hookAddedNow ? `<p style="color:#fc6"><b>✅ Done. Now restart FM-DX</b> (close it and start it again). After that the sharing works.</p>` : '')
+            : `<p style="color:#f66"><b>One more step is needed:</b> Fair Tuner Sharing must add one line to FM-DX's <code>server/index.js</code>, otherwise it does nothing.<br>
+               <button data-act="installhook">🔧 Fix it now</button> then restart FM-DX.</p>`;
+        box.innerHTML = hookNote + `<p class="kv-sub">When several listeners are connected, the one who tunes gets a short turn. The others
               see a friendly countdown instead of the frequency jumping around. The admin and your own network can always tune.
              </p>
             <div><button data-set="enabled" data-val="true" class="${s.enabled ? 'kv-on' : ''}">✅ On</button><button data-set="enabled" data-val="false" class="${s.enabled ? '' : 'kv-on'}">Off</button></div>
@@ -87,9 +91,13 @@
                     send(name, Math.round(v * Number(inp.dataset.factor)));
                 };
                 box.addEventListener('click', e => {
-                    const b = e.target.closest('button[data-set], button[data-custom]');
+                    const b = e.target.closest('button[data-set], button[data-custom], button[data-act]');
                     if (!b) return;
                     e.preventDefault();
+                    if (b.dataset.act === 'installhook') {
+                        api('POST', '/fairshare/installhook').then(() => load(box)).catch(err => alert('Fair Tuner Sharing: ' + err.message));
+                        return;
+                    }
                     if (b.dataset.custom) fromBox(b.dataset.custom); else send(b.dataset.set, b.dataset.val);
                 });
                 // Enter in a number box = Set (and keep FM-DX from seeing the key)

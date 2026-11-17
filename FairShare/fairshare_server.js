@@ -75,7 +75,18 @@ function admin(req, res, next) {
     if (req.session && req.session.isAdminAuthenticated) return next();
     res.status(403).json({ error: 'admin login required' });
 }
-router.get('/fairshare/admin', admin, (req, res) => res.json({ settings: conf, stats, hookInstalled: true, listeners: listeners().length,
+
+// The one line Fair Tuner Sharing needs in server/index.js (missing when the plugin was copied by hand)
+const INDEX_JS = path.join(__dirname, '../../server/index.js');
+const fairHook = require('./hook');
+const hookInstalled = () => { try { return fairHook.status(INDEX_JS) === 'ok'; } catch (_) { return false; } };
+let hookAddedNow = false;   // added by the button: works after the next restart
+// Changes to FM-DX itself only from this server's own page (no forged requests from other sites)
+function ownPage(req) {
+    try { return [req.headers['x-forwarded-host'], req.headers.host].filter(Boolean).map(h => String(h).split(',')[0].trim().toLowerCase()).includes(new URL(req.headers.origin || req.headers.referer).host.toLowerCase()); } catch (_) { return false; }
+}
+
+router.get('/fairshare/admin', admin, (req, res) => res.json({ settings: conf, stats, hookInstalled: hookInstalled(), hookAddedNow, listeners: listeners().length,
     turnNow: holder && turnLeft(Date.now()) > 0 ? { secondsLeft: Math.ceil(turnLeft(Date.now()) / 1000) } : null }));
 router.post('/fairshare/settings', admin, (req, res) => {
     const q = req.query;
@@ -87,5 +98,16 @@ router.post('/fairshare/settings', admin, (req, res) => {
     res.json({ settings: conf });
 });
 
-logInfo(`[Fair Tuner Sharing] active: ${conf.enabled ? 'on' : 'off'}, turn ${conf.turnSeconds} s (max ${conf.maxTurnMinutes} min) when ${conf.minListeners}+ listeners`);
+// "Fix it now" in the Setup tab: adds the line to server/index.js (same as install.js)
+router.post('/fairshare/installhook', admin, (req, res) => {
+    if (!ownPage(req)) return res.status(403).json({ error: 'This must come from the server\'s own Setup page.' });
+    let r;
+    try { r = fairHook.install(INDEX_JS); } catch (e) { return res.status(500).json({ error: 'Could not change server/index.js: ' + e.message }); }
+    if (r === 'unknown') return res.status(409).json({ error: 'server/index.js looks different (Fair Tuner Sharing is made for FM-DX 1.4.x), so it was not changed.' });
+    hookAddedNow = true;
+    logInfo(`[Fair Tuner Sharing] tuner line ${r} in server/index.js from the Setup page; restart FM-DX to start sharing`);
+    res.json({ ok: true });
+});
+
+logInfo(`[Fair Tuner Sharing] active: ${conf.enabled ? 'on' : 'off'}, turn ${conf.turnSeconds} s (max ${conf.maxTurnMinutes} min) when ${conf.minListeners}+ listeners${hookInstalled() ? '' : ' - WARNING: the tuner line is missing in server/index.js: press "Fix it now" in Setup → Fair Tuner Sharing (or run install.js), then restart'}`);
 module.exports = { _test: { filter, setConf: c => { conf = { ...conf, ...c }; }, reset: () => { holder = null; waiting.clear(); } } };

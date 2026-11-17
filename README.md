@@ -89,9 +89,10 @@ FM-DX plugins cannot hold back tune commands by themselves, so the installer add
 The same idea: the installer adds one line to `server/chat.js` (backup: `server/chat.js.before-chat-filter`),
 so messages are checked on the server and nobody can get around the filter.
 
-**Chat Filter's tab says "One more step is needed"?**
-The plugin was copied into the `plugins` folder by hand, so the one line it needs in `server/chat.js` is missing.
+**A tab says "One more step is needed"?** (Chat Filter or Fair Tuner Sharing)
+The plugin was copied into the `plugins` folder by hand, so the line it needs in FM-DX itself is missing.
 Press **🔧 Fix it now** in that note, then restart FM-DX. (Running the install line does the same.)
+Station Log and Listener Insights need no extra step: copying them is enough.
 
 **Will Chat Filter block normal words by mistake?**
 It matches whole words, so words like *γάμος*, *μαλακό*, *cocktail* or *class* pass. Use **Try a message**
