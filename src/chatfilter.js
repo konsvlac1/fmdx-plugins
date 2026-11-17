@@ -35,6 +35,8 @@
     const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : new Date(t).toLocaleDateString(); };
     const REASON = { 'bad word': '🚫 bad word', 'bad nickname': '🚫 bad nickname', link: '🔗 link', 'link hidden': '🔗 link removed', hidden: '✳️ hidden', repeat: '🔁 repeated', muted: '🔇 while muted' };
 
+    let shown = false;                                     // built-in words hidden as f*** until "Show words"
+    const mask = () => '****';
     function render(box, a) {
         const s = a.settings;
         const on = (k, v) => String(s[k]) === String(v) ? 'kv-on' : '';
@@ -60,8 +62,9 @@
             <div><input class="cf-add" type="text" maxlength="60" placeholder="add a word" style="width:220px;max-width:100%;padding:7px 12px;border-radius:10px;border:0;margin:0 6px 6px 0"><button data-act="add">➕ Add</button></div>
             <h3>Your words (${s.words.length})</h3>
             <div class="cf-chips">${s.words.map(w => `<span class="cf-chip cf-mine">${esc(w)}<button data-remove="${esc(w)}" title="Remove">✕</button></span>`).join('') || '<span class="kv-empty">None yet.</span>'}</div>
-            <details style="margin-top:10px"><summary style="cursor:pointer;opacity:.8">🔒 Built-in bad words (${a.builtin.length}, always on)</summary>
-              <div class="cf-chips" style="margin-top:6px">${a.builtin.map(w => `<span class="cf-chip" style="padding-right:10px">${esc(w)}</span>`).join('')}</div></details>
+            <h3>🔒 Built-in bad words (${a.builtin.length}, always on)</h3>
+            <div><button data-act="reveal">${shown ? '🙈 Hide words' : '👁 Show words'}</button></div>
+            <div class="cf-chips${shown ? ' cf-shown' : ''}" style="margin-top:4px">${a.builtin.map(w => `<span class="cf-chip" style="padding-right:10px"><span class="cf-m">${esc(mask(w))}</span><span class="cf-r">${esc(w)}</span></span>`).join('')}</div>
             ${s.blockLinks ? `<h3>Allowed sites (links to these are OK)</h3>
             <p class="kv-sub">Links to this site are always allowed. A site here also allows its sub-sites (fmdx.org → maps.fmdx.org).</p>
             <div><input class="cf-site" type="text" maxlength="100" placeholder="e.g. fmdx.org" style="width:220px;max-width:100%;padding:7px 12px;border-radius:10px;border:0;margin:0 6px 6px 0"><button data-act="addsite">➕ Add</button></div>
@@ -92,7 +95,10 @@
 .kv-box .cf-chip.cf-mine { background: var(--color-4, #5a5); color: var(--color-main, #000); font-weight: 600; }
 .kv-box .cf-chip.cf-off { opacity: .6; text-decoration: line-through; }
 .kv-box .cf-chip button { padding: 0 7px !important; margin: 0 !important; border-radius: 10px !important; background: transparent !important; color: inherit !important; font-size: 12px !important; }
-.kv-box .cf-chip button:hover { background: rgba(0,0,0,.25) !important; }`;
+.kv-box .cf-chip button:hover { background: rgba(0,0,0,.25) !important; }
+.kv-box .cf-chips .cf-r { display: none; }
+.kv-box .cf-chips.cf-shown .cf-r { display: inline; }
+.kv-box .cf-chips.cf-shown .cf-m { display: none; }`;
         document.head.appendChild(st);
     }
 
@@ -113,6 +119,10 @@
                     } else if (b.dataset.act === 'add') {
                         const inp = box.querySelector('.cf-add'), w = inp.value.trim();
                         if (w) run('/chatfilter/settings', { add: w });
+                    } else if (b.dataset.act === 'reveal') {
+                        shown = !shown;
+                        b.textContent = shown ? '🙈 Hide words' : '👁 Show words';
+                        b.parentNode.nextElementSibling.classList.toggle('cf-shown', shown);
                     } else if (b.dataset.act === 'addsite') {
                         const w = box.querySelector('.cf-site').value.trim();
                         if (w) run('/chatfilter/settings', { addSite: w });
