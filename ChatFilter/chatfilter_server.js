@@ -171,7 +171,9 @@ setInterval(() => {     // forget old repeat/strike memory
     if (changed) saveConf();
 }, 10 * 60000).unref();
 
-function hookInstalled() { try { return fs.readFileSync(CHAT_JS, 'utf8').includes('fmdxChatFilters'); } catch (_) { return false; } }
+const chatHook = require('./hook');
+function hookInstalled() { try { return chatHook.status(CHAT_JS) === 'ok'; } catch (_) { return false; } }
+let hookAddedNow = false;   // added by the button: works after the next restart
 function admin(req, res, next) {
     if (req.session && req.session.isAdminAuthenticated) return next();
     res.status(403).json({ error: 'admin login required' });
@@ -184,7 +186,7 @@ function adminData() {
     const { muted: _m, ...settings } = conf;
     // "bad": the bad words in each listed message/nickname, so the Setup tab can hide them as ****
     const bad = e => [...words.check(e.message, compiled).found, ...words.check(e.nickname, compiled).found].map(f => f.word);
-    return { settings, builtin: words.BUILTIN.filter(w => !w.startsWith('!')), stats, muted, log: log.slice(-100).reverse().map(e => ({ ...e, bad: bad(e) })), hookInstalled: hookInstalled() };
+    return { hookAddedNow, settings, builtin: words.BUILTIN.filter(w => !w.startsWith('!')), stats, muted, log: log.slice(-100).reverse().map(e => ({ ...e, bad: bad(e) })), hookInstalled: hookInstalled() };
 }
 
 router.get('/chatfilter/admin', admin, (req, res) => res.json(adminData()));
@@ -234,7 +236,16 @@ router.post('/chatfilter/unmute', admin, (req, res) => {
     saveConf();
     res.json(adminData());
 });
+// "Fix it now" in the Setup tab: adds the chat line to server/chat.js (same as install.js)
+router.post('/chatfilter/installhook', admin, (req, res) => {
+    let result;
+    try { result = chatHook.install(CHAT_JS); } catch (e) { return res.status(500).json({ error: 'Could not change server/chat.js: ' + e.message }); }
+    if (result === 'unknown') return res.status(409).json({ error: 'server/chat.js looks different (Chat Filter is made for FM-DX 1.4.x), so it was not changed.' });
+    hookAddedNow = true;
+    logInfo(`[Chat Filter] chat line ${result} in server/chat.js from the Setup page; restart FM-DX to start filtering`);
+    res.json(adminData());
+});
 router.post('/chatfilter/clearlog', admin, (req, res) => { log = []; saveLog(); res.json(adminData()); });
 
-logInfo(`[Chat Filter] ${conf.enabled ? 'on' : 'off'} (${conf.mode}), ${compiled.length} words${hookInstalled() ? '' : ' - WARNING: the chat hook is missing in server/chat.js, run install.js'}`);
+logInfo(`[Chat Filter] ${conf.enabled ? 'on' : 'off'} (${conf.mode}), ${compiled.length} words${hookInstalled() ? '' : ' - WARNING: the chat line is missing in server/chat.js: press "Fix it now" in Setup → Chat Filter (or run install.js), then restart'}`);
 module.exports = { _test: { filter, setConf: c => { conf = { ...conf, ...c }; rebuild(); }, reset: () => { strikes.clear(); recent.clear(); conf.muted = {}; log = []; } } };
