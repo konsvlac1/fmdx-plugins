@@ -118,13 +118,14 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
         box.innerHTML = `
             ${a.hookInstalled ? '' : `<p style="color:#f66"><b>The chat hook is missing.</b> Run <code>node install.js &lt;FM-DX folder&gt;</code> again and restart FM-DX, otherwise nothing is filtered.</p>`}
             <p class="kv-sub">Checks every chat message before anyone sees it. Messages with bad words (Greek, Greeklish and English,
-              also written like sh!t, ΜΑΛΆΚΑ or f u c k) or spam links are not sent, and only the sender sees a short note. Admins are never filtered.</p>
+              also written like sh!t, ΜΑΛΆΚΑ or f u c k) or spam links are not sent, and only the sender sees a short note. Bad words are stopped for admins too (you can switch that off below); links, repeats and mutes never apply to admins.</p>
             <div><button data-k="enabled" data-v="true" class="${on('enabled', true)}">✅ On</button><button data-k="enabled" data-v="false" class="${on('enabled', false)}">Off</button></div>
             <h3>When a message has a bad word</h3>
             <div><button data-k="mode" data-v="block" class="${on('mode', 'block')}">🚫 Don't send it</button><button data-k="mode" data-v="hide" class="${on('mode', 'hide')}">✳️ Send it with *** instead of the word</button></div>
             <h3>Also</h3>
             <div><button data-k="blockRepeats" data-v="${!s.blockRepeats}" class="${on('blockRepeats', true)}">${s.blockRepeats ? '✅' : '⬜'} Stop the same message sent again (5 min)</button>
                  <button data-k="blockLinks" data-v="${!s.blockLinks}" class="${on('blockLinks', true)}">${s.blockLinks ? '✅' : '⬜'} Block links (spam)</button>
+                 <button data-k="filterAdmins" data-v="${!s.filterAdmins}" class="${on('filterAdmins', true)}">${s.filterAdmins ? '✅' : '⬜'} Admins too (bad words)</button>
                  <button data-k="checkNicknames" data-v="${!s.checkNicknames}" class="${on('checkNicknames', true)}">${s.checkNicknames ? '✅' : '⬜'} Check nicknames too</button>
 </div>
             <h3>Mute after blocked messages</h3>
@@ -154,7 +155,7 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
             <h3>Muted now</h3>
             ${a.muted.length ? `<table><tr><th>Nickname</th><th>Address</th><th>Time left</th><th>Why</th><th></th></tr>${a.muted.map(m => `<tr><td>${esc(m.nickname)}</td><td>${esc(m.ip)}</td><td>${m.minutesLeft} min</td><td>${esc(m.reason)}</td><td><button data-unmute="${esc(m.ip)}">Unmute</button></td></tr>`).join('')}</table>` : '<div class="kv-empty">Nobody.</div>'}
             <h3>Stopped messages</h3>
-            ${a.log.length ? `<table><tr><th>When</th><th>Nickname</th><th>Message</th><th>Why</th><th>Address</th><th></th></tr>${a.log.map(e => `<tr><td style="white-space:nowrap">${ago(e.t)}</td><td>${esc(e.nickname)}</td><td>${esc(e.message)}${e.words ? `<br><small style="opacity:.7">${esc(e.words.join(', '))}</small>` : ''}</td><td style="white-space:nowrap">${REASON[e.reason] || esc(e.reason)}${e.muted ? ' → 🔇' : ''}</td><td>${esc(e.ip)}</td><td style="white-space:nowrap"><button data-mute="${esc(e.ip)}" data-nick="${esc(e.nickname)}">🔇 Mute 1 day</button></td></tr>`).join('')}</table>
+            ${a.log.length ? `<table><tr><th>When</th><th>Nickname</th><th>Message</th><th>Why</th><th>Address</th><th></th></tr>${a.log.map(e => `<tr><td style="white-space:nowrap">${ago(e.t)}</td><td>${esc(e.nickname)}${e.admin ? ' <small style="color:#bada55">[ADMIN]</small>' : ''}</td><td>${esc(e.message)}${e.words ? `<br><small style="opacity:.7">${esc(e.words.join(', '))}</small>` : ''}</td><td style="white-space:nowrap">${REASON[e.reason] || esc(e.reason)}${e.muted ? ' → 🔇' : ''}</td><td>${esc(e.ip)}</td><td style="white-space:nowrap">${e.admin ? '' : `<button data-mute="${esc(e.ip)}" data-nick="${esc(e.nickname)}">🔇 Mute 1 day</button>`}</td></tr>`).join('')}</table>
               <div style="margin-top:8px"><button data-act="clearlog">Clear the list</button></div>` : '<div class="kv-empty">Nothing stopped yet.</div>'}`;
     }
 

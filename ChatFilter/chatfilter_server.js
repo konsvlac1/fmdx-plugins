@@ -4,7 +4,7 @@
 //   - links are not sent (spam), except to allowed sites and to this server's own site
 //   - the same message again within 5 minutes is not sent (trolls, spam)
 //   - after a few blocked messages the sender is muted for a while
-// Admins are never filtered.
+// Admins: bad words are stopped for them too (switch filterAdmins); links, repeats and mutes never apply to admins.
 //
 // Needs the small "plugin chat filter" hook in server/chat.js (install.js adds it).
 // Settings: plugins_configs/chatfilter.json   Log: plugins_configs/chatfilter-log.json
@@ -18,7 +18,7 @@ const CONF = path.join(__dirname, '../../plugins_configs/chatfilter.json');
 const LOG = path.join(__dirname, '../../plugins_configs/chatfilter-log.json');
 const CHAT_JS = path.join(__dirname, '../../server/chat.js');
 const DEFAULTS = {
-    enabled: true, mode: 'block', words: [], checkNicknames: true, blockRepeats: true,
+    enabled: true, mode: 'block', words: [], filterAdmins: true, checkNicknames: true, blockRepeats: true,
     muteAfter: 3, muteMinutes: 10, blockLinks: true, allowSites: ['fmdx.org', 'fmlist.org', 'fmscan.org'],
     notice: 'Your message was not sent: please keep the chat friendly. / Το μήνυμα δεν στάλθηκε: παρακαλούμε, ευγένεια στο chat.',
     muted: {}
@@ -82,9 +82,23 @@ function strike(ip, nickname) {
 }
 
 function filter({ ws, request, message, isAdmin }) {
-    if (!conf.enabled || isAdmin) return true;
+    if (!conf.enabled || (isAdmin && !conf.filterAdmins)) return true;
     stats.checked++;
     const ip = visitorIp(request), nickname = decode(message.nickname), text = String(message.message || '');
+    if (isAdmin) {      // admins: only bad words (in the message or the nickname); no mute, links and repeats are fine
+        const found = [...words.check(text, compiled).found, ...(conf.checkNicknames ? words.check(nickname, compiled).found : [])];
+        if (!found.length) return true;
+        if (conf.mode === 'hide' && !words.check(nickname, compiled).found.length) {
+            message.message = words.check(text, compiled).masked;
+            stats.hidden++;
+            addLog({ ip, nickname, message: text, reason: 'hidden', words: found.map(f => f.word), admin: true });
+            return true;
+        }
+        stats.blocked++;
+        addLog({ ip, nickname, message: text, reason: 'bad word', words: found.map(f => f.word), admin: true });
+        notify(ws, conf.notice);
+        return false;
+    }
     const left = mutedFor(ip);
     if (left) {
         addLog({ ip, nickname, message: text, reason: 'muted' });
@@ -176,7 +190,7 @@ router.post('/chatfilter/settings', admin, (req, res) => {
     const b = body(req);
     if (typeof b.enabled === 'boolean') conf.enabled = b.enabled;
     if (b.mode === 'block' || b.mode === 'hide') conf.mode = b.mode;
-    for (const k of ['checkNicknames', 'blockRepeats', 'blockLinks']) if (typeof b[k] === 'boolean') conf[k] = b[k];
+    for (const k of ['checkNicknames', 'blockRepeats', 'blockLinks', 'filterAdmins']) if (typeof b[k] === 'boolean') conf[k] = b[k];
     if (b.muteAfter !== undefined) conf.muteAfter = Math.min(20, Math.max(0, Math.round(Number(b.muteAfter)) || 0));
     if (b.muteMinutes !== undefined) conf.muteMinutes = Math.min(10080, Math.max(1, Math.round(Number(b.muteMinutes)) || DEFAULTS.muteMinutes));
     if (typeof b.notice === 'string') conf.notice = b.notice.trim().slice(0, 300) || DEFAULTS.notice;
