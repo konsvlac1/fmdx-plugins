@@ -33,7 +33,7 @@
 
     // ---------- Setup page ----------
     const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : new Date(t).toLocaleDateString(); };
-    const REASON = { 'bad word': '🚫 bad word', 'bad nickname': '🚫 bad nickname', hidden: '✳️ hidden', repeat: '🔁 repeated', muted: '🔇 while muted' };
+    const REASON = { 'bad word': '🚫 bad word', 'bad nickname': '🚫 bad nickname', link: '🔗 link', 'link hidden': '🔗 link removed', hidden: '✳️ hidden', repeat: '🔁 repeated', muted: '🔇 while muted' };
 
     function render(box, a) {
         const s = a.settings;
@@ -41,12 +41,13 @@
         box.innerHTML = `
             ${a.hookInstalled ? '' : `<p style="color:#f66"><b>The chat hook is missing.</b> Run <code>node install.js &lt;FM-DX folder&gt;</code> again and restart FM-DX, otherwise nothing is filtered.</p>`}
             <p class="kv-sub">Checks every chat message before anyone sees it. Messages with bad words (Greek, Greeklish and English,
-              also written like sh!t, ΜΑΛΆΚΑ or f u c k) are not sent, and only the sender sees a short note. Admins are never filtered.</p>
+              also written like sh!t, ΜΑΛΆΚΑ or f u c k) or spam links are not sent, and only the sender sees a short note. Admins are never filtered.</p>
             <div><button data-k="enabled" data-v="true" class="${on('enabled', true)}">✅ On</button><button data-k="enabled" data-v="false" class="${on('enabled', false)}">Off</button></div>
             <h3>When a message has a bad word</h3>
             <div><button data-k="mode" data-v="block" class="${on('mode', 'block')}">🚫 Don't send it</button><button data-k="mode" data-v="hide" class="${on('mode', 'hide')}">✳️ Send it with *** instead of the word</button></div>
             <h3>Also</h3>
             <div><button data-k="blockRepeats" data-v="${!s.blockRepeats}" class="${on('blockRepeats', true)}">${s.blockRepeats ? '✅' : '⬜'} Stop the same message sent again (5 min)</button>
+                 <button data-k="blockLinks" data-v="${!s.blockLinks}" class="${on('blockLinks', true)}">${s.blockLinks ? '✅' : '⬜'} Block links (spam)</button>
                  <button data-k="checkNicknames" data-v="${!s.checkNicknames}" class="${on('checkNicknames', true)}">${s.checkNicknames ? '✅' : '⬜'} Check nicknames too</button>
                  <button data-k="useBuiltin" data-v="${!s.useBuiltin}" class="${on('useBuiltin', true)}">${s.useBuiltin ? '✅' : '⬜'} Use the built-in word list (${a.builtin.length})</button></div>
             <h3>Mute after blocked messages</h3>
@@ -63,6 +64,10 @@
                   <p class="kv-sub" style="margin-top:6px">${own.length} added by you (highlighted) + ${bi.length} built-in.</p>
                   ${s.useBuiltin && s.removed.length ? `<details><summary style="cursor:pointer;opacity:.8">Removed built-in words (${s.removed.length})</summary><div class="cf-chips" style="margin-top:6px">${s.removed.map(w => `<span class="cf-chip cf-off">${esc(w)}<button data-add="${esc(w)}" title="Block it again">↩</button></span>`).join('')}</div></details>` : ''}`;
             })()}
+            ${s.blockLinks ? `<h3>Allowed sites (links to these are OK)</h3>
+            <p class="kv-sub">Links to this site are always allowed. A site here also allows its sub-sites (fmdx.org → maps.fmdx.org).</p>
+            <div><input class="cf-site" type="text" maxlength="100" placeholder="e.g. fmdx.org" style="width:220px;max-width:100%;padding:7px 12px;border-radius:10px;border:0;margin:0 6px 6px 0"><button data-act="addsite">➕ Add</button></div>
+            <div class="cf-chips">${s.allowSites.map(x => `<span class="cf-chip cf-mine">${esc(x)}<button data-rmsite="${esc(x)}" title="Remove">✕</button></span>`).join('') || '<span class="kv-empty">None: every link is blocked (except this site).</span>'}</div>` : ''}
             <h3>Note the sender sees</h3>
             <input class="cf-notice" type="text" maxlength="300" value="${esc(s.notice)}" style="width:100%;max-width:720px;padding:7px 12px;border-radius:10px;border:0;margin-bottom:6px">
             <div><button data-act="notice">💾 Save note</button></div>
@@ -71,7 +76,7 @@
             <div><button data-act="test">Test</button> <span class="cf-result"></span></div>
             <h3>Since the last restart</h3>
             <div class="kv-cards"><div class="kv-card"><b>${a.stats.checked}</b>messages checked</div><div class="kv-card"><b>${a.stats.blocked}</b>blocked</div>
-              <div class="kv-card"><b>${a.stats.hidden}</b>words hidden</div><div class="kv-card"><b>${a.stats.repeats}</b>repeats stopped</div><div class="kv-card"><b>${a.stats.mutes}</b>mutes</div></div>
+              <div class="kv-card"><b>${a.stats.hidden}</b>words hidden</div><div class="kv-card"><b>${a.stats.links || 0}</b>links stopped</div><div class="kv-card"><b>${a.stats.repeats}</b>repeats stopped</div><div class="kv-card"><b>${a.stats.mutes}</b>mutes</div></div>
             <h3>Muted now</h3>
             ${a.muted.length ? `<table><tr><th>Nickname</th><th>Address</th><th>Time left</th><th>Why</th><th></th></tr>${a.muted.map(m => `<tr><td>${esc(m.nickname)}</td><td>${esc(m.ip)}</td><td>${m.minutesLeft} min</td><td>${esc(m.reason)}</td><td><button data-unmute="${esc(m.ip)}">Unmute</button></td></tr>`).join('')}</table>` : '<div class="kv-empty">Nobody.</div>'}
             <h3>Stopped messages</h3>
@@ -110,7 +115,11 @@
                     } else if (b.dataset.act === 'add') {
                         const inp = box.querySelector('.cf-add'), w = inp.value.trim();
                         if (w) run('/chatfilter/settings', { add: w });
-                    } else if (b.dataset.remove) run('/chatfilter/settings', { remove: b.dataset.remove });
+                    } else if (b.dataset.act === 'addsite') {
+                        const w = box.querySelector('.cf-site').value.trim();
+                        if (w) run('/chatfilter/settings', { addSite: w });
+                    } else if (b.dataset.rmsite) run('/chatfilter/settings', { removeSite: b.dataset.rmsite });
+                    else if (b.dataset.remove) run('/chatfilter/settings', { remove: b.dataset.remove });
                     else if (b.dataset.add) run('/chatfilter/settings', { add: b.dataset.add });
                     else if (b.dataset.act === 'notice') run('/chatfilter/settings', { notice: box.querySelector('.cf-notice').value });
                     else if (b.dataset.act === 'clearlog') { if (confirm('Clear the list of stopped messages?')) run('/chatfilter/clearlog'); }
@@ -118,7 +127,7 @@
                         const out = box.querySelector('.cf-result');
                         try {
                             const r = await post('/chatfilter/test', { text: box.querySelector('.cf-test').value });
-                            out.innerHTML = r.blocked ? `🚫 would be stopped (${esc(r.found.map(f => f.word).join(', '))}) — hidden form: <i>${esc(r.masked)}</i>` : '✅ OK, it would be sent';
+                            out.innerHTML = r.blocked ? `🚫 would be stopped (${esc([...r.found.map(f => f.word), ...r.links.map(l => '🔗 ' + l)].join(', '))})${r.found.length ? ` — hidden form: <i>${esc(r.masked)}</i>` : ''}` : '✅ OK, it would be sent';
                         } catch (err) { out.textContent = err.message; }
                     } else if (b.dataset.mute) run('/chatfilter/mute', { ip: b.dataset.mute, nickname: b.dataset.nick, minutes: 1440 });
                     else if (b.dataset.unmute) run('/chatfilter/unmute', { ip: b.dataset.unmute });
@@ -128,6 +137,7 @@
                     if (!e.target.matches('input, textarea')) return;
                     e.stopPropagation();
                     if (e.key === 'Enter' && e.target.matches('.cf-test')) { e.preventDefault(); box.querySelector('[data-act="test"]').click(); }
+                    if (e.key === 'Enter' && e.target.matches('.cf-site')) { e.preventDefault(); box.querySelector('[data-act="addsite"]').click(); }
                     if (e.key === 'Enter' && e.target.matches('.cf-add')) { e.preventDefault(); box.querySelector('[data-act="add"]').click(); }
                 });
             }

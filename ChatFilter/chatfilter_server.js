@@ -1,6 +1,7 @@
 // Chat Filter (server part): checks every chat message BEFORE it is saved or shown to anyone.
 //   - bad words (Greek, Greeklish, English + your own words): the message is not sent
 //     (or, in "hide" mode, the word is sent as ***); only the sender sees a short note
+//   - links are not sent (spam), except to allowed sites and to this server's own site
 //   - the same message again within 5 minutes is not sent (trolls, spam)
 //   - after a few blocked messages the sender is muted for a while
 // Admins are never filtered.
@@ -18,7 +19,7 @@ const LOG = path.join(__dirname, '../../plugins_configs/chatfilter-log.json');
 const CHAT_JS = path.join(__dirname, '../../server/chat.js');
 const DEFAULTS = {
     enabled: true, mode: 'block', useBuiltin: true, words: [], removed: [], checkNicknames: true, blockRepeats: true,
-    muteAfter: 3, muteMinutes: 10,
+    muteAfter: 3, muteMinutes: 10, blockLinks: true, allowSites: ['fmdx.org', 'fmlist.org', 'fmscan.org'],
     notice: 'Your message was not sent: please keep the chat friendly. / Το μήνυμα δεν στάλθηκε: παρακαλούμε, ευγένεια στο chat.',
     muted: {}
 };
@@ -39,7 +40,7 @@ const builtinOn = () => conf.useBuiltin ? words.BUILTIN.filter(w => !conf.remove
 const rebuild = () => { compiled = words.compile([...builtinOn(), ...conf.words]); };
 rebuild();
 
-const stats = { since: Date.now(), checked: 0, blocked: 0, hidden: 0, repeats: 0, mutes: 0 };
+const stats = { since: Date.now(), checked: 0, blocked: 0, hidden: 0, links: 0, repeats: 0, mutes: 0 };
 const strikes = new Map();   // ip -> [times]
 const recent = new Map();    // ip -> [{ text, t }]
 
@@ -94,19 +95,37 @@ function filter({ ws, request, message, isAdmin }) {
         notify(ws, 'Your message was not sent: please choose a friendly nickname (Chat → your name). / Το μήνυμα δεν στάλθηκε: παρακαλούμε, αλλάξτε το ψευδώνυμό σας.');
         return false;
     }
-    const r = words.check(text, compiled);
+    let text2 = text;
+    const r = words.check(text2, compiled);
     if (r.found.length) {
         if (conf.mode === 'hide') {
-            message.message = r.masked;
+            text2 = message.message = r.masked;
             stats.hidden++;
             addLog({ ip, nickname, message: text, reason: 'hidden', words: r.found.map(f => f.word) });
-            return true;
+        } else {
+            stats.blocked++;
+            const muted = strike(ip, nickname);
+            addLog({ ip, nickname, message: text, reason: 'bad word', words: r.found.map(f => f.word), muted });
+            notify(ws, muted ? `${conf.notice} (Muted for ${conf.muteMinutes} min.)` : conf.notice);
+            return false;
         }
-        stats.blocked++;
-        const muted = strike(ip, nickname);
-        addLog({ ip, nickname, message: text, reason: 'bad word', words: r.found.map(f => f.word), muted });
-        notify(ws, muted ? `${conf.notice} (Muted for ${conf.muteMinutes} min.)` : conf.notice);
-        return false;
+    }
+    if (conf.blockLinks) {
+        const own = String(request.headers.host || '').split(':')[0].toLowerCase().replace(/^www\./, '');
+        const bad = words.links(text2).filter(l => !words.siteAllowed(l.host, [...conf.allowSites, own].filter(Boolean)));
+        if (bad.length) {
+            stats.links++;
+            if (conf.mode === 'hide') {
+                for (const l of bad.sort((x, y) => y.start - x.start)) text2 = text2.slice(0, l.start) + '[link removed]' + text2.slice(l.end);
+                message.message = text2;
+                addLog({ ip, nickname, message: text, reason: 'link hidden', words: bad.map(l => l.host) });
+            } else {
+                const muted = strike(ip, nickname);
+                addLog({ ip, nickname, message: text, reason: 'link', words: bad.map(l => l.host), muted });
+                notify(ws, 'Your message was not sent: links are not allowed in the chat. / Το μήνυμα δεν στάλθηκε: δεν επιτρέπονται σύνδεσμοι στο chat.' + (muted ? ` (Muted for ${conf.muteMinutes} min.)` : ''));
+                return false;
+            }
+        }
     }
     if (conf.blockRepeats) {
         const now = Date.now(), key = text.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -155,7 +174,7 @@ router.post('/chatfilter/settings', admin, (req, res) => {
     const b = body(req);
     if (typeof b.enabled === 'boolean') conf.enabled = b.enabled;
     if (b.mode === 'block' || b.mode === 'hide') conf.mode = b.mode;
-    for (const k of ['useBuiltin', 'checkNicknames', 'blockRepeats']) if (typeof b[k] === 'boolean') conf[k] = b[k];
+    for (const k of ['useBuiltin', 'checkNicknames', 'blockRepeats', 'blockLinks']) if (typeof b[k] === 'boolean') conf[k] = b[k];
     if (b.muteAfter !== undefined) conf.muteAfter = Math.min(20, Math.max(0, Math.round(Number(b.muteAfter)) || 0));
     if (b.muteMinutes !== undefined) conf.muteMinutes = Math.min(10080, Math.max(1, Math.round(Number(b.muteMinutes)) || DEFAULTS.muteMinutes));
     if (typeof b.notice === 'string') conf.notice = b.notice.trim().slice(0, 300) || DEFAULTS.notice;
@@ -173,6 +192,9 @@ router.post('/chatfilter/settings', admin, (req, res) => {
         rebuild();
         if (!conf.words.includes(w) && (w.endsWith('*') || !words.check(w, compiled).found.length)) conf.words.push(w);
     }
+    const site = x => String(x).trim().toLowerCase().replace(/^https?:\/\//, '').split(/[/:?#\s]/)[0].replace(/^www\./, '').slice(0, 100);
+    if (typeof b.addSite === 'string' && site(b.addSite).includes('.') && !conf.allowSites.includes(site(b.addSite))) conf.allowSites.push(site(b.addSite));
+    if (typeof b.removeSite === 'string') conf.allowSites = conf.allowSites.filter(x => x !== site(b.removeSite));
     if (typeof b.remove === 'string' && b.remove.trim()) {
         const w = b.remove.trim().toLowerCase();
         conf.words = conf.words.filter(x => x !== w && !blocks(x, w));
@@ -183,8 +205,10 @@ router.post('/chatfilter/settings', admin, (req, res) => {
     res.json(adminData());
 });
 router.post('/chatfilter/test', admin, (req, res) => {
-    const r = words.check(String(body(req).text || '').slice(0, 500), compiled);
-    res.json({ blocked: r.found.length > 0, found: r.found, masked: r.masked });
+    const text = String(body(req).text || '').slice(0, 500), r = words.check(text, compiled);
+    const own = String(req.headers.host || '').split(':')[0].toLowerCase().replace(/^www\./, '');
+    const links = conf.blockLinks ? words.links(text).filter(l => !words.siteAllowed(l.host, [...conf.allowSites, own])).map(l => l.host) : [];
+    res.json({ blocked: r.found.length > 0 || links.length > 0, found: r.found, links, masked: r.masked });
 });
 router.post('/chatfilter/mute', admin, (req, res) => {
     const b = body(req), ip = clean(b.ip);

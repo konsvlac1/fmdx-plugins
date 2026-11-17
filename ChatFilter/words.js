@@ -113,4 +113,18 @@ function check(text, compiled) {
     return { found: found.map(f => ({ word: f.word, entry: f.entry })), masked };
 }
 
-module.exports = { BUILTIN, compile, check, _forms: { plain, greek } };
+// Links: http(s)://…, www.…, or name.<common ending> (example.com, t.me/x, discord.gg/x, bit.ly/x).
+// Numbers like 106.8 or 1.4.2 are not links. -> [ { text, host, start, end } ]
+const TLD = 'com|net|org|info|biz|gr|eu|io|me|gg|ly|co|cc|to|tv|app|dev|xyz|top|site|online|shop|store|link|live|click|club|pro|ru|ua|de|uk|us|fr|it|es|nl|be|pl|ro|bg|cy|al|tr|in|cn|tk|ml|ga|cf|gq|sh|ai|so|ws|fm|am|vip|win|bet|casino|porn|sex|xxx';
+const LINK = new RegExp(`(?:https?:\\/\\/[^\\s<>"']+|www\\.[^\\s<>"']+|\\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:${TLD})\\b(?:[/:?#][^\\s<>"']*)?)`, 'gi');
+function links(text) {
+    const s = String(text || '').replace(INVISIBLE, ''), out = [];
+    for (const m of s.matchAll(LINK)) {
+        const host = m[0].replace(/^https?:\/\//i, '').split(/[/:?#]/)[0].toLowerCase().replace(/^www\./, '').replace(/[.,;!)]+$/, '');
+        out.push({ text: m[0], host, start: m.index, end: m.index + m[0].length });
+    }
+    return out;
+}
+const siteAllowed = (host, sites) => (sites || []).some(x => host === x || host.endsWith('.' + x));
+
+module.exports = { BUILTIN, compile, check, links, siteAllowed, _forms: { plain, greek } };
