@@ -43,9 +43,19 @@ node "%USERPROFILE%\Downloads\fmdx-plugins-main\fmdx-plugins-main\install.js" "C
 3. **Restart** FM-DX Webserver.
 4. In **Setup** you now have the tabs **Station Log**, **Listener Insights**, **Fair Tuner Sharing** and **Chat Filter**.
 
-### Only one plugin (for example only 🛡️ Chat Filter)
+### Only one plugin
 
-Do the same steps as above, but add the plugin's name at the **end** of the install line.
+Do the same steps as above, but write the plugin's **name** at the **end** of the install line.
+Pick the name from this table:
+
+| Plugin | Name to write |
+|---|---|
+| 📒 Station Log | `StationLog` |
+| 📊 Listener Insights | `ListenerInsights` |
+| 🎧 Fair Tuner Sharing | `FairShare` |
+| 🛡️ Chat Filter | `ChatFilter` |
+
+Example with Chat Filter (write another name from the table instead, if you want another plugin):
 
 **Windows** (in the black `cmd` window):
 ```
@@ -57,9 +67,10 @@ node "%USERPROFILE%\Downloads\fmdx-plugins-main\fmdx-plugins-main\install.js" "C
 sudo node fmdx-plugins-main/install.js /home/pi/fm-dx-webserver ChatFilter
 ```
 
-Then in **Setup → Plugins** tick only **Chat Filter**, press **Save**, and restart FM-DX.
+Then in **Setup → Plugins** tick only that plugin, press **Save**, and restart FM-DX.
+For two or more plugins, write their names with a space between them (e.g. `StationLog ChatFilter`).
 
-The names: `ChatFilter`, `StationLog`, `ListenerInsights`, `FairShare`. You can write more than one, with a space between them.
+*Scan Guard is a separate download: see [fmdx-scan-guard](https://github.com/konsvlac1/fmdx-scan-guard).*
 
 To remove them: run the same install line with ` --uninstall` at the end, then restart FM-DX.
 

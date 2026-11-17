@@ -47,9 +47,19 @@ node "%USERPROFILE%\Downloads\fmdx-plugins-main\fmdx-plugins-main\install.js" "C
 3. Κάντε **επανεκκίνηση** (restart) του FM-DX Webserver.
 4. Στο **Setup** εμφανίζονται πλέον οι καρτέλες **Station Log**, **Listener Insights**, **Fair Tuner Sharing** και **Chat Filter**.
 
-### Μόνο ένα πρόσθετο (για παράδειγμα μόνο το 🛡️ Chat Filter)
+### Μόνο ένα πρόσθετο
 
-Κάντε τα ίδια βήματα όπως παραπάνω, αλλά γράψτε το όνομα του πρόσθετου στο **τέλος** της γραμμής εγκατάστασης.
+Κάντε τα ίδια βήματα όπως παραπάνω, αλλά γράψτε το **όνομα** του πρόσθετου στο **τέλος** της γραμμής εγκατάστασης.
+Διαλέξτε το όνομα από αυτόν τον πίνακα:
+
+| Πρόσθετο | Όνομα που γράφετε |
+|---|---|
+| 📒 Station Log | `StationLog` |
+| 📊 Listener Insights | `ListenerInsights` |
+| 🎧 Fair Tuner Sharing | `FairShare` |
+| 🛡️ Chat Filter | `ChatFilter` |
+
+Παράδειγμα με το Chat Filter (για άλλο πρόσθετο, γράψτε αντί γι' αυτό άλλο όνομα από τον πίνακα):
 
 **Windows** (στο μαύρο παράθυρο `cmd`):
 ```
@@ -61,9 +71,10 @@ node "%USERPROFILE%\Downloads\fmdx-plugins-main\fmdx-plugins-main\install.js" "C
 sudo node fmdx-plugins-main/install.js /home/pi/fm-dx-webserver ChatFilter
 ```
 
-Μετά, στο **Setup → Plugins** τσεκάρετε μόνο το **Chat Filter**, πατήστε **Save** και κάντε επανεκκίνηση του FM-DX.
+Μετά, στο **Setup → Plugins** τσεκάρετε μόνο αυτό το πρόσθετο, πατήστε **Save** και κάντε επανεκκίνηση του FM-DX.
+Για δύο ή περισσότερα, γράψτε τα ονόματα με κενό ανάμεσα (π.χ. `StationLog ChatFilter`).
 
-Τα ονόματα: `ChatFilter`, `StationLog`, `ListenerInsights`, `FairShare`. Μπορείτε να γράψετε και περισσότερα, με κενό ανάμεσα.
+*Το Scan Guard είναι ξεχωριστή λήψη: δείτε το [fmdx-scan-guard](https://github.com/konsvlac1/fmdx-scan-guard/blob/main/README.el.md).*
 
 **Απεγκατάσταση:** τρέξτε την ίδια γραμμή εγκατάστασης με ` --uninstall` στο τέλος και κάντε επανεκκίνηση του FM-DX.
 
