@@ -43,8 +43,23 @@ node "%USERPROFILE%\Downloads\fmdx-plugins-main\fmdx-plugins-main\install.js" "C
 3. **Restart** FM-DX Webserver.
 4. In **Setup** you now have the tabs **Station Log**, **Listener Insights**, **Fair Tuner Sharing** and **Chat Filter**.
 
-You can also install only some: add their names at the end of the install line,
-for example `… install.js /home/pi/fm-dx-webserver StationLog ListenerInsights`.
+### Only one plugin (for example only 🛡️ Chat Filter)
+
+Do the same steps as above, but add the plugin's name at the **end** of the install line.
+
+**Windows** (in the black `cmd` window):
+```
+node "%USERPROFILE%\Downloads\fmdx-plugins-main\fmdx-plugins-main\install.js" "C:\fm-dx-webserver" ChatFilter
+```
+
+**Raspberry Pi / Linux:**
+```
+sudo node fmdx-plugins-main/install.js /home/pi/fm-dx-webserver ChatFilter
+```
+
+Then in **Setup → Plugins** tick only **Chat Filter**, press **Save**, and restart FM-DX.
+
+The names: `ChatFilter`, `StationLog`, `ListenerInsights`, `FairShare`. You can write more than one, with a space between them.
 
 To remove them: run the same install line with ` --uninstall` at the end, then restart FM-DX.
 

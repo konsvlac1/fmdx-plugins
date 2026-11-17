@@ -47,8 +47,23 @@ node "%USERPROFILE%\Downloads\fmdx-plugins-main\fmdx-plugins-main\install.js" "C
 3. Κάντε **επανεκκίνηση** (restart) του FM-DX Webserver.
 4. Στο **Setup** εμφανίζονται πλέον οι καρτέλες **Station Log**, **Listener Insights**, **Fair Tuner Sharing** και **Chat Filter**.
 
-Μπορείτε να εγκαταστήσετε και μόνο κάποια: γράψτε τα ονόματά τους στο τέλος της γραμμής εγκατάστασης,
-για παράδειγμα `… install.js /home/pi/fm-dx-webserver ChatFilter`.
+### Μόνο ένα πρόσθετο (για παράδειγμα μόνο το 🛡️ Chat Filter)
+
+Κάντε τα ίδια βήματα όπως παραπάνω, αλλά γράψτε το όνομα του πρόσθετου στο **τέλος** της γραμμής εγκατάστασης.
+
+**Windows** (στο μαύρο παράθυρο `cmd`):
+```
+node "%USERPROFILE%\Downloads\fmdx-plugins-main\fmdx-plugins-main\install.js" "C:\fm-dx-webserver" ChatFilter
+```
+
+**Raspberry Pi / Linux:**
+```
+sudo node fmdx-plugins-main/install.js /home/pi/fm-dx-webserver ChatFilter
+```
+
+Μετά, στο **Setup → Plugins** τσεκάρετε μόνο το **Chat Filter**, πατήστε **Save** και κάντε επανεκκίνηση του FM-DX.
+
+Τα ονόματα: `ChatFilter`, `StationLog`, `ListenerInsights`, `FairShare`. Μπορείτε να γράψετε και περισσότερα, με κενό ανάμεσα.
 
 **Απεγκατάσταση:** τρέξτε την ίδια γραμμή εγκατάστασης με ` --uninstall` στο τέλος και κάντε επανεκκίνηση του FM-DX.
 
