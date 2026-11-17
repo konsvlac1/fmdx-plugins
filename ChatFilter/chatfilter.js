@@ -114,6 +114,14 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
 
     let shown = false;                                     // built-in words hidden as f*** until "Show words"
     const mask = () => '****';
+    let logShown = false;                                  // swear words in "Stopped messages" hidden until "Show messages"
+    // text with the found words replaced by ****, as two spans (hidden / real) for the Show button
+    const both = (text, found) => {
+        let m = String(text || '');
+        for (const w of (found || []).slice().sort((a, b) => b.length - a.length)) if (w) m = m.split(w).join('****');
+        return m === String(text || '') ? esc(text) : `<span class="cf-m">${esc(m)}</span><span class="cf-r">${esc(text)}</span>`;
+    };
+    const wordsOf = e => e.bad || ((e.reason === 'link' || e.reason === 'link hidden' || e.reason === 'repeat') ? [] : (e.words || []));
     function render(box, a) {
         const s = a.settings;
         const on = (k, v) => String(s[k]) === String(v) ? 'kv-on' : '';
@@ -158,6 +166,28 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
             <h3>Muted now</h3>
             ${a.muted.length ? `<table><tr><th>Nickname</th><th>Address</th><th>Time left</th><th>Why</th><th></th></tr>${a.muted.map(m => `<tr><td>${esc(m.nickname)}</td><td>${esc(m.ip)}</td><td>${m.minutesLeft} min</td><td>${esc(m.reason)}</td><td><button data-unmute="${esc(m.ip)}">Unmute</button></td></tr>`).join('')}</table>` : '<div class="kv-empty">Nobody.</div>'}
             <h3>Stopped messages</h3>
+            ${a.log.length ? `<div><button data-act="revealLog">${logShown ? '🙈 Hide messages' : '👁 Show messages'}</button></div>
+              <div class="cf-log${logShown ? ' cf-shown' : ''}"><table><tr><th>When</th><th>Nickname</th><th>Message</th><th>Why</th><th>Address</th><th></th></tr>${a.log.map(e => `<tr><td style="white-space:nowrap">${ago(e.t)}</td><td>${both(e.nickname, wordsOf(e))}${e.admin ? ' <small style="color:#bada55">[ADMIN]</small>' : ''}</td><td>${both(e.message, wordsOf(e))}${(e.reason === 'link' || e.reason === 'link hidden') && e.words ? `<br><small style="opacity:.7">🔗 ${esc(e.words.join(', '))}</small>` : ''}</td><td style="white-space:nowrap">${REASON[e.reason] || esc(e.reason)}${e.muted ? ' → 🔇' : ''}</td><td>${esc(e.ip)}</td><td style="white-space:nowrap">${e.admin ? '' : `<button data-mute="${esc(e.ip)}" data-nick="${esc(e.nickname)}">🔇 Mute 1 day</button>`}</td></tr>`).join('')}</table></div>
+              <div style="margin-top:8px"><button data-act="clearlog">Clear the list</button></div>` : '<div class="kv-empty">Nothing stopped yet.</div>'}
+            <h3>🔒 Built-in bad words (${a.builtin.length}, always on)</h3>
+            <div><button data-act="reveal">${shown ? '🙈 Hide words' : '👁 Show words'}</button></div>
+            <div class="cf-chips${shown ? ' cf-shown' : ''}" style="margin-top:4px">${a.builtin.map(w => `<span class="cf-chip" style="padding-right:10px"><span class="cf-m">${esc(mask(w))}</span><span class="cf-r">${esc(w)}</span></span>`).join('')}</div>
+            ${s.blockLinks ? `<h3>Allowed sites (links to these are OK)</h3>
+            <p class="kv-sub">Links to this site are always allowed. A site here also allows its sub-sites (fmdx.org → maps.fmdx.org).</p>
+            <div><input class="cf-site" type="text" maxlength="100" placeholder="e.g. fmdx.org" style="width:220px;max-width:100%;padding:7px 12px;border-radius:10px;border:0;margin:0 6px 6px 0"><button data-act="addsite">➕ Add</button></div>
+            <div class="cf-chips">${s.allowSites.map(x => `<span class="cf-chip cf-mine">${esc(x)}<button data-rmsite="${esc(x)}" title="Remove">✕</button></span>`).join('') || '<span class="kv-empty">None: every link is blocked (except this site).</span>'}</div>` : ''}
+            <h3>Note the sender sees</h3>
+            <input class="cf-notice" type="text" maxlength="300" value="${esc(s.notice)}" style="width:100%;max-width:720px;padding:7px 12px;border-radius:10px;border:0;margin-bottom:6px">
+            <div><button data-act="notice">💾 Save note</button></div>
+            <h3>Try a message</h3>
+            <input class="cf-test" type="text" placeholder="type a message to test" style="width:100%;max-width:520px;padding:7px 12px;border-radius:10px;border:0;margin-bottom:6px">
+            <div><button data-act="test">Test</button> <span class="cf-result"></span></div>
+            <h3>Since the last restart</h3>
+            <div class="kv-cards"><div class="kv-card"><b>${a.stats.checked}</b>messages checked</div><div class="kv-card"><b>${a.stats.blocked}</b>blocked</div>
+              <div class="kv-card"><b>${a.stats.hidden}</b>words hidden</div><div class="kv-card"><b>${a.stats.links || 0}</b>links stopped</div><div class="kv-card"><b>${a.stats.repeats}</b>repeats stopped</div><div class="kv-card"><b>${a.stats.mutes}</b>mutes</div></div>
+            <h3>Muted now</h3>
+            ${a.muted.length ? `<table><tr><th>Nickname</th><th>Address</th><th>Time left</th><th>Why</th><th></th></tr>${a.muted.map(m => `<tr><td>${esc(m.nickname)}</td><td>${esc(m.ip)}</td><td>${m.minutesLeft} min</td><td>${esc(m.reason)}</td><td><button data-unmute="${esc(m.ip)}">Unmute</button></td></tr>`).join('')}</table>` : '<div class="kv-empty">Nobody.</div>'}
+            <h3>Stopped messages</h3>
             ${a.log.length ? `<table><tr><th>When</th><th>Nickname</th><th>Message</th><th>Why</th><th>Address</th><th></th></tr>${a.log.map(e => `<tr><td style="white-space:nowrap">${ago(e.t)}</td><td>${esc(e.nickname)}${e.admin ? ' <small style="color:#bada55">[ADMIN]</small>' : ''}</td><td>${esc(e.message)}${e.words ? `<br><small style="opacity:.7">${esc(e.words.join(', '))}</small>` : ''}</td><td style="white-space:nowrap">${REASON[e.reason] || esc(e.reason)}${e.muted ? ' → 🔇' : ''}</td><td>${esc(e.ip)}</td><td style="white-space:nowrap">${e.admin ? '' : `<button data-mute="${esc(e.ip)}" data-nick="${esc(e.nickname)}">🔇 Mute 1 day</button>`}</td></tr>`).join('')}</table>
               <div style="margin-top:8px"><button data-act="clearlog">Clear the list</button></div>` : '<div class="kv-empty">Nothing stopped yet.</div>'}`;
     }
@@ -173,9 +203,9 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
 .kv-box .cf-chip.cf-off { opacity: .6; text-decoration: line-through; }
 .kv-box .cf-chip button { padding: 0 7px !important; margin: 0 !important; border-radius: 10px !important; background: transparent !important; color: inherit !important; font-size: 12px !important; }
 .kv-box .cf-chip button:hover { background: rgba(0,0,0,.25) !important; }
-.kv-box .cf-chips .cf-r { display: none; }
-.kv-box .cf-chips.cf-shown .cf-r { display: inline; }
-.kv-box .cf-chips.cf-shown .cf-m { display: none; }`;
+.kv-box .cf-r { display: none; }
+.kv-box .cf-shown .cf-r { display: inline; }
+.kv-box .cf-shown .cf-m { display: none; }`;
         document.head.appendChild(st);
     }
 
@@ -200,6 +230,10 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
                         shown = !shown;
                         b.textContent = shown ? '🙈 Hide words' : '👁 Show words';
                         b.parentNode.nextElementSibling.classList.toggle('cf-shown', shown);
+                    } else if (b.dataset.act === 'revealLog') {
+                        logShown = !logShown;
+                        b.textContent = logShown ? '🙈 Hide messages' : '👁 Show messages';
+                        box.querySelector('.cf-log').classList.toggle('cf-shown', logShown);
                     } else if (b.dataset.act === 'addsite') {
                         const w = box.querySelector('.cf-site').value.trim();
                         if (w) run('/chatfilter/settings', { addSite: w });
@@ -212,7 +246,7 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
                         const out = box.querySelector('.cf-result');
                         try {
                             const r = await post('/chatfilter/test', { text: box.querySelector('.cf-test').value });
-                            out.innerHTML = r.blocked ? `🚫 would be stopped (${esc([...r.found.map(f => f.word), ...r.links.map(l => '🔗 ' + l)].join(', '))})${r.found.length ? ` — hidden form: <i>${esc(r.masked)}</i>` : ''}` : '✅ OK, it would be sent';
+                            out.innerHTML = r.blocked ? `🚫 would be stopped${r.found.length ? ` (${r.found.length} bad word${r.found.length > 1 ? 's' : ''})` : ''}${r.links.length ? ` (🔗 ${esc(r.links.join(', '))})` : ''}${r.found.length ? ` — with *** it reads: <i>${esc(r.masked)}</i>` : ''}` : '✅ OK, it would be sent';
                         } catch (err) { out.textContent = err.message; }
                     } else if (b.dataset.mute) run('/chatfilter/mute', { ip: b.dataset.mute, nickname: b.dataset.nick, minutes: 1440 });
                     else if (b.dataset.unmute) run('/chatfilter/unmute', { ip: b.dataset.unmute });

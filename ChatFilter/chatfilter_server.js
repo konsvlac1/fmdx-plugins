@@ -182,7 +182,9 @@ function adminData() {
     const muted = Object.entries(conf.muted).filter(([, m]) => m.until > now)
         .map(([ip, m]) => ({ ip, nickname: m.nickname, reason: m.reason, minutesLeft: Math.ceil((m.until - now) / 60000) }));
     const { muted: _m, ...settings } = conf;
-    return { settings, builtin: words.BUILTIN, stats, muted, log: log.slice(-100).reverse(), hookInstalled: hookInstalled() };
+    // "bad": the bad words in each listed message/nickname, so the Setup tab can hide them as ****
+    const bad = e => [...words.check(e.message, compiled).found, ...words.check(e.nickname, compiled).found].map(f => f.word);
+    return { settings, builtin: words.BUILTIN, stats, muted, log: log.slice(-100).reverse().map(e => ({ ...e, bad: bad(e) })), hookInstalled: hookInstalled() };
 }
 
 router.get('/chatfilter/admin', admin, (req, res) => res.json(adminData()));
