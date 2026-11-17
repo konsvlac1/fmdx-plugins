@@ -2,6 +2,8 @@
 
 *by konvlachos*
 
+🇬🇷 [Οδηγίες στα ελληνικά](README.el.md)
+
 Four free plugins that help you run a public FM-DX tuner:
 
 | Plugin | What it does for you |
