@@ -17,7 +17,7 @@ const CONF = path.join(__dirname, '../../plugins_configs/chatfilter.json');
 const LOG = path.join(__dirname, '../../plugins_configs/chatfilter-log.json');
 const CHAT_JS = path.join(__dirname, '../../server/chat.js');
 const DEFAULTS = {
-    enabled: true, mode: 'block', useBuiltin: true, words: [], checkNicknames: true, blockRepeats: true,
+    enabled: true, mode: 'block', useBuiltin: true, words: [], removed: [], checkNicknames: true, blockRepeats: true,
     muteAfter: 3, muteMinutes: 10,
     notice: 'Your message was not sent: please keep the chat friendly. / Το μήνυμα δεν στάλθηκε: παρακαλούμε, ευγένεια στο chat.',
     muted: {}
@@ -35,7 +35,8 @@ function saveLog() {
 }
 
 let compiled = [];
-const rebuild = () => { compiled = words.compile([...(conf.useBuiltin ? words.BUILTIN : []), ...conf.words]); };
+const builtinOn = () => conf.useBuiltin ? words.BUILTIN.filter(w => !conf.removed.includes(w)) : [];
+const rebuild = () => { compiled = words.compile([...builtinOn(), ...conf.words]); };
 rebuild();
 
 const stats = { since: Date.now(), checked: 0, blocked: 0, hidden: 0, repeats: 0, mutes: 0 };
@@ -149,7 +150,25 @@ router.post('/chatfilter/settings', admin, (req, res) => {
     if (b.muteAfter !== undefined) conf.muteAfter = Math.min(20, Math.max(0, Math.round(Number(b.muteAfter)) || 0));
     if (b.muteMinutes !== undefined) conf.muteMinutes = Math.min(10080, Math.max(1, Math.round(Number(b.muteMinutes)) || DEFAULTS.muteMinutes));
     if (typeof b.notice === 'string') conf.notice = b.notice.trim().slice(0, 300) || DEFAULTS.notice;
-    if (Array.isArray(b.words)) conf.words = [...new Set(b.words.map(w => String(w).trim().slice(0, 60)).filter(Boolean))].slice(0, 2000);
+    const tidy = l => [...new Set(l.map(w => String(w).trim().toLowerCase().slice(0, 60)).filter(Boolean))].slice(0, 2000);
+    if (Array.isArray(b.words)) conf.words = tidy(b.words);
+    if (Array.isArray(b.removed)) conf.removed = tidy(b.removed).filter(w => words.BUILTIN.includes(w));
+    // one word at a time: { add: 'word' } / { remove: 'word' }. Matching is by meaning, not spelling:
+    // removing "malakas" also switches off the built-in "μαλακας"; adding a word that is already
+    // blocked adds nothing; adding a removed built-in word switches it back on.
+    const blocks = (entry, w) => words.check(w.replace(/\*$/, ''), words.compile([entry])).found.length > 0;
+    if (typeof b.add === 'string' && b.add.trim()) {
+        const w = b.add.trim().toLowerCase().slice(0, 60);
+        const back = conf.removed.filter(x => x === w || blocks(x, w));
+        if (back.length) conf.removed = conf.removed.filter(x => !back.includes(x));
+        rebuild();
+        if (!conf.words.includes(w) && (w.endsWith('*') || !words.check(w, compiled).found.length)) conf.words.push(w);
+    }
+    if (typeof b.remove === 'string' && b.remove.trim()) {
+        const w = b.remove.trim().toLowerCase();
+        conf.words = conf.words.filter(x => x !== w && !blocks(x, w));
+        for (const x of words.BUILTIN) if ((x === w || blocks(x, w)) && !conf.removed.includes(x)) conf.removed.push(x);
+    }
     saveConf();
     rebuild();
     res.json(adminData());

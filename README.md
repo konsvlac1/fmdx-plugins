@@ -9,7 +9,7 @@ Four free plugins that help you run a public FM-DX tuner:
 | 📒 **Station Log** | Writes down every station your tuner receives, automatically: frequency, PI, station name, place, best signal, first and last heard. You get a list of "what can be received here", with search and Excel download. You can also show the list to your listeners. |
 | 📊 **Listener Insights** | Shows how your server is used: visitors per day, busiest hours and days, most listened stations, countries and how long people stay. Optional weekly summary in Telegram. No IP addresses are stored. |
 | 🎧 **Fair Tuner Sharing** | When several listeners are connected, the one who tunes gets a short turn (2 minutes after the last tune, at most 10 minutes). The others see a friendly countdown instead of the frequency jumping around. You (the admin) can always tune. In its Setup tab you choose the turn length, the longest turn and from how many listeners sharing starts: quick buttons or any number you like (up to 1000 listeners). |
-| 🛡️ **Chat Filter** | Checks every chat message **before anyone sees it**. Messages with bad words (Greek, Greeklish and English, also written like `sh!t`, `ΜΑΛΆΚΑ`, `f u c k`) are not sent, and only the sender sees a short note; their text goes back into the chat box so they can fix it. It also stops the same message sent again and again, and mutes a sender for a while after a few blocked messages. You can add your own words, choose "send it with \*\*\* instead", test a message, and see and mute senders from its Setup tab. Admins are never filtered. |
+| 🛡️ **Chat Filter** | Checks every chat message **before anyone sees it**. Messages with bad words (Greek, Greeklish and English, also written like `sh!t`, `ΜΑΛΆΚΑ`, `f u c k`) are not sent, and only the sender sees a short note; their text goes back into the chat box so they can fix it. It also stops the same message sent again and again, and mutes a sender for a while after a few blocked messages. In its Setup tab you add or remove words with one click (built-in ones too, and they can be put back), choose "send it with \*\*\* instead", test a message, and see and mute senders. Admins are never filtered. |
 
 Each plugin gets its own tab in the **Setup** page (admin panel).
 
@@ -51,7 +51,7 @@ To remove them: run the same install line with ` --uninstall` at the end, then r
 ## Questions
 
 **Do the plugins slow down my server?**
-No. Station Log looks at the tuner once a second, Listener Insights every 10 seconds, and Chat Filter only works when someone sends a chat message. Both only save a small file every 30–60 seconds.
+No. Station Log looks at the tuner once a second, Listener Insights every 10 seconds, and Chat Filter only works when someone sends a chat message. They only save a small file now and then.
 
 **What does Fair Tuner Sharing change in FM-DX?**
 FM-DX plugins cannot hold back tune commands by themselves, so the installer adds one line to `server/index.js`

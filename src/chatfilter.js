@@ -52,10 +52,17 @@
             <h3>Mute after blocked messages</h3>
             <div>${[0, 2, 3, 5].map(v => `<button data-k="muteAfter" data-v="${v}" class="${on('muteAfter', v)}">${v ? v + ' blocked' : 'Never'}</button>`).join('')}
                  <span style="white-space:nowrap;margin-left:8px">for ${[10, 60, 1440].map(v => `<button data-k="muteMinutes" data-v="${v}" class="${on('muteMinutes', v)}">${v < 60 ? v + ' min' : v < 1440 ? '1 hour' : '1 day'}</button>`).join('')}</span></div>
-            <h3>Your own words</h3>
-            <p class="kv-sub">One per line. A word ending in * also blocks longer words that start with it (e.g. <code>troll*</code>). Greek words also catch Greeklish.</p>
-            <textarea class="cf-words" rows="5" style="width:100%;max-width:520px;padding:8px 12px;border-radius:10px;border:0">${esc(s.words.join('\n'))}</textarea>
-            <div><button data-act="words">💾 Save words</button></div>
+            <h3>Blocked words</h3>
+            <p class="kv-sub">Any message with one of these words is stopped. Add a word, or press ✕ to remove one.
+              A word ending in * also blocks longer words that start with it (e.g. <code>troll*</code>). Greek words also catch Greeklish.</p>
+            <div><input class="cf-add" type="text" maxlength="60" placeholder="add a word" style="width:220px;max-width:100%;padding:7px 12px;border-radius:10px;border:0;margin:0 6px 6px 0"><button data-act="add">➕ Add</button></div>
+            ${(() => {
+                const own = s.words, bi = s.useBuiltin ? a.builtin.filter(w => !s.removed.includes(w)) : [];
+                const chip = (w, mine) => `<span class="cf-chip${mine ? ' cf-mine' : ''}">${esc(w)}<button data-remove="${esc(w)}" title="Remove">✕</button></span>`;
+                return `<div class="cf-chips">${own.map(w => chip(w, true)).join('')}${bi.map(w => chip(w, false)).join('')}${own.length + bi.length ? '' : '<span class="kv-empty">No words: nothing is blocked.</span>'}</div>
+                  <p class="kv-sub" style="margin-top:6px">${own.length} added by you (highlighted) + ${bi.length} built-in.</p>
+                  ${s.useBuiltin && s.removed.length ? `<details><summary style="cursor:pointer;opacity:.8">Removed built-in words (${s.removed.length})</summary><div class="cf-chips" style="margin-top:6px">${s.removed.map(w => `<span class="cf-chip cf-off">${esc(w)}<button data-add="${esc(w)}" title="Block it again">↩</button></span>`).join('')}</div></details>` : ''}`;
+            })()}
             <h3>Note the sender sees</h3>
             <input class="cf-notice" type="text" maxlength="300" value="${esc(s.notice)}" style="width:100%;max-width:720px;padding:7px 12px;border-radius:10px;border:0;margin-bottom:6px">
             <div><button data-act="notice">💾 Save note</button></div>
@@ -69,14 +76,28 @@
             ${a.muted.length ? `<table><tr><th>Nickname</th><th>Address</th><th>Time left</th><th>Why</th><th></th></tr>${a.muted.map(m => `<tr><td>${esc(m.nickname)}</td><td>${esc(m.ip)}</td><td>${m.minutesLeft} min</td><td>${esc(m.reason)}</td><td><button data-unmute="${esc(m.ip)}">Unmute</button></td></tr>`).join('')}</table>` : '<div class="kv-empty">Nobody.</div>'}
             <h3>Stopped messages</h3>
             ${a.log.length ? `<table><tr><th>When</th><th>Nickname</th><th>Message</th><th>Why</th><th>Address</th><th></th></tr>${a.log.map(e => `<tr><td style="white-space:nowrap">${ago(e.t)}</td><td>${esc(e.nickname)}</td><td>${esc(e.message)}${e.words ? `<br><small style="opacity:.7">${esc(e.words.join(', '))}</small>` : ''}</td><td style="white-space:nowrap">${REASON[e.reason] || esc(e.reason)}${e.muted ? ' → 🔇' : ''}</td><td>${esc(e.ip)}</td><td style="white-space:nowrap"><button data-mute="${esc(e.ip)}" data-nick="${esc(e.nickname)}">🔇 Mute 1 day</button></td></tr>`).join('')}</table>
-              <div style="margin-top:8px"><button data-act="clearlog">Clear the list</button></div>` : '<div class="kv-empty">Nothing stopped yet.</div>'}
-            <details style="margin-top:14px"><summary style="cursor:pointer;opacity:.8">Show the built-in word list</summary><p style="opacity:.8;line-height:1.7">${a.builtin.map(esc).join(', ')}</p></details>`;
+              <div style="margin-top:8px"><button data-act="clearlog">Clear the list</button></div>` : '<div class="kv-empty">Nothing stopped yet.</div>'}`;
+    }
+
+    function css() {
+        if (document.getElementById('cf-style')) return;
+        const st = document.createElement('style');
+        st.id = 'cf-style';
+        st.textContent = `
+.kv-box .cf-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.kv-box .cf-chip { display: inline-flex; align-items: center; gap: 2px; padding: 3px 4px 3px 10px; border-radius: 14px; background: rgba(255,255,255,.08); font-size: 13px; }
+.kv-box .cf-chip.cf-mine { background: var(--color-4, #5a5); color: var(--color-main, #000); font-weight: 600; }
+.kv-box .cf-chip.cf-off { opacity: .6; text-decoration: line-through; }
+.kv-box .cf-chip button { padding: 0 7px !important; margin: 0 !important; border-radius: 10px !important; background: transparent !important; color: inherit !important; font-size: 12px !important; }
+.kv-box .cf-chip button:hover { background: rgba(0,0,0,.25) !important; }`;
+        document.head.appendChild(st);
     }
 
     function setupPage() {
         let wired = false;
         window.fmdxSetupTab({ id: 'chatfilter', title: 'Chat Filter', icon: 'fa-comment-slash', onShow: async box => {
-            const run = async (url, data) => { try { render(box, await post(url, data)); } catch (err) { alert('Chat Filter: ' + err.message); } };
+            const run = async (url, data) => { try { render(box, await post(url, data)); } catch (err) { alert('Chat Filter: ' + (err.message === 'admin login required' ? 'please reload the page and log in again.' : err.message)); } };
+            css();
             if (!wired) {
                 wired = true;
                 box.addEventListener('click', async e => {
@@ -86,7 +107,11 @@
                     if (b.dataset.k) {
                         const v = b.dataset.v;
                         run('/chatfilter/settings', { [b.dataset.k]: v === 'true' ? true : v === 'false' ? false : /^\d+$/.test(v) ? Number(v) : v });
-                    } else if (b.dataset.act === 'words') run('/chatfilter/settings', { words: box.querySelector('.cf-words').value.split('\n') });
+                    } else if (b.dataset.act === 'add') {
+                        const inp = box.querySelector('.cf-add'), w = inp.value.trim();
+                        if (w) run('/chatfilter/settings', { add: w });
+                    } else if (b.dataset.remove) run('/chatfilter/settings', { remove: b.dataset.remove });
+                    else if (b.dataset.add) run('/chatfilter/settings', { add: b.dataset.add });
                     else if (b.dataset.act === 'notice') run('/chatfilter/settings', { notice: box.querySelector('.cf-notice').value });
                     else if (b.dataset.act === 'clearlog') { if (confirm('Clear the list of stopped messages?')) run('/chatfilter/clearlog'); }
                     else if (b.dataset.act === 'test') {
@@ -103,10 +128,15 @@
                     if (!e.target.matches('input, textarea')) return;
                     e.stopPropagation();
                     if (e.key === 'Enter' && e.target.matches('.cf-test')) { e.preventDefault(); box.querySelector('[data-act="test"]').click(); }
+                    if (e.key === 'Enter' && e.target.matches('.cf-add')) { e.preventDefault(); box.querySelector('[data-act="add"]').click(); }
                 });
             }
             try { render(box, await fetch('/chatfilter/admin', { credentials: 'same-origin' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })); }
-            catch (err) { box.innerHTML = `<div class="kv-empty">Could not load Chat Filter (${esc(err.message)}).</div>`; }
+            catch (err) {
+                box.innerHTML = err.message === '403'
+                    ? '<div class="kv-empty">You are not logged in as admin any more (for example after a restart of FM-DX). Please <a href="/setup" onclick="location.reload();return false">reload this page</a> and log in again.</div>'
+                    : `<div class="kv-empty">Could not load Chat Filter (${esc(err.message)}).</div>`;
+            }
         } });
     }
 
