@@ -110,7 +110,7 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
 
     // ---------- Setup page ----------
     const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : new Date(t).toLocaleDateString(); };
-    const REASON = { 'bad word': '🚫 bad word', hidden: '✳️ hidden', repeat: '🔁 repeated', muted: '🔇 while muted' };
+    const REASON = { 'bad word': '🚫 bad word', 'bad nickname': '🚫 bad nickname', hidden: '✳️ hidden', repeat: '🔁 repeated', muted: '🔇 while muted' };
 
     function render(box, a) {
         const s = a.settings;

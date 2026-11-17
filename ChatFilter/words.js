@@ -28,7 +28,10 @@ const GR = { α: 'a', β: 'v', γ: 'g', δ: 'd', ε: 'e', ζ: 'z', η: 'i', θ: 
     ξ: 'x', ο: 'o', π: 'p', ρ: 'r', σ: 's', τ: 't', υ: 'i', φ: 'f', χ: 'x', ψ: 'ps', ω: 'o' };
 const GREEK = /[Ͱ-Ͽἀ-῿]/;
 
-const base = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/ς/g, 'σ');
+// Cyrillic letters that look Latin (fuсk with a Cyrillic с), and invisible characters (fu\u200Bck)
+const LOOK = { а: 'a', в: 'b', е: 'e', к: 'k', м: 'm', н: 'h', о: 'o', р: 'p', с: 'c', т: 't', у: 'y', х: 'x', і: 'i', ј: 'j', ѕ: 's' };
+const INVISIBLE = /[\u00ad\u200b-\u200f\u2060\ufeff]/g;
+const base = s => [...String(s).replace(INVISIBLE, '').toLowerCase()].map(c => LOOK[c] || c).join('').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/ς/g, 'σ');
 const collapse = s => s.replace(/(.)\1+/g, '$1');
 // Plain form, for Latin entries: f@ck -> fack, fuuuck -> fuck
 const plain = t => collapse([...base(t)].map(c => LEET[c] || c).join(''));
@@ -55,11 +58,12 @@ function compile(list) {
     return out;
 }
 
-// Words of a message with their place in it; letters split by dots/spaces (f u c k) are joined too.
+// Words of a message with their place in it. Also joined: letters split by spaces or dots (f u c k,
+// μ.α.λ.α.κ.α) and pieces glued by one symbol without spaces (fu.ck, f*ck, sh-it).
 function tokens(text) {
     const s = String(text || '');
     const words = [];
-    for (const m of s.matchAll(/[\p{L}\p{N}@$!|+]+/gu)) {
+    for (const m of s.matchAll(/[\p{L}\p{N}\p{M}@$!|+\u00ad\u200b-\u200f\u2060\ufeff]+/gu)) {
         let w = m[0], start = m.index;
         const lead = w.match(/^[!|+]+/), trail = w.match(/[!|+]+$/);
         if (lead) { start += lead[0].length; w = w.slice(lead[0].length); }
@@ -72,6 +76,12 @@ function tokens(text) {
         while (j < words.length && [...words[j].w].length === 1) j++;
         if (j - i >= 3) out.push({ w: words.slice(i, j).map(x => x.w).join(''), start: words[i].start, end: words[j - 1].end });
         i = Math.max(j, i + 1);
+    }
+    for (let i = 0; i < words.length;) {
+        let j = i;
+        while (j + 1 < words.length && words[j + 1].start - words[j].end === 1 && /[.\-_*~'`]/.test(s[words[j].end])) j++;
+        if (j > i) out.push({ w: words.slice(i, j + 1).map(x => x.w).join(''), start: words[i].start, end: words[j].end });
+        i = j + 1;
     }
     return out;
 }
@@ -93,11 +103,13 @@ function check(text, compiled) {
         const entry = hit(t, compiled);
         if (entry) found.push({ word: s.slice(t.start, t.end), entry, start: t.start, end: t.end });
     }
+    // hide the longest matches first; skip a match inside a part that is already hidden
+    const spans = [];
+    for (const f of found.slice().sort((a, b) => (b.end - b.start) - (a.end - a.start)))
+        if (!spans.some(x => f.start < x.end && f.end > x.start)) spans.push(f);
     let masked = s;
-    for (const f of found.slice().sort((a, b) => b.start - a.start)) {
-        if (masked.slice(f.start, f.end).includes('*')) continue;   // already hidden by a longer match
+    for (const f of spans.sort((a, b) => b.start - a.start))
         masked = masked.slice(0, f.start) + '*'.repeat(Math.max(3, Math.min(8, [...f.word].length))) + masked.slice(f.end);
-    }
     return { found: found.map(f => ({ word: f.word, entry: f.entry })), masked };
 }
 

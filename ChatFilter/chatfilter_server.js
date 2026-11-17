@@ -88,17 +88,23 @@ function filter({ ws, request, message, isAdmin }) {
         notify(ws, `You are muted in the chat for ${Math.ceil(left / 60000)} more minute(s). / Είστε σε σίγαση για ${Math.ceil(left / 60000)} λεπτά ακόμα.`);
         return false;
     }
-    const found = [...words.check(text, compiled).found, ...(conf.checkNicknames ? words.check(nickname, compiled).found : [])];
-    if (found.length) {
-        if (conf.mode === 'hide' && !(conf.checkNicknames && words.check(nickname, compiled).found.length)) {
-            message.message = words.check(text, compiled).masked;
+    if (conf.checkNicknames && words.check(nickname, compiled).found.length) {
+        stats.blocked++;
+        addLog({ ip, nickname, message: text, reason: 'bad nickname', words: words.check(nickname, compiled).found.map(f => f.word) });
+        notify(ws, 'Your message was not sent: please choose a friendly nickname (Chat → your name). / Το μήνυμα δεν στάλθηκε: παρακαλούμε, αλλάξτε το ψευδώνυμό σας.');
+        return false;
+    }
+    const r = words.check(text, compiled);
+    if (r.found.length) {
+        if (conf.mode === 'hide') {
+            message.message = r.masked;
             stats.hidden++;
-            addLog({ ip, nickname, message: text, reason: 'hidden', words: found.map(f => f.word) });
+            addLog({ ip, nickname, message: text, reason: 'hidden', words: r.found.map(f => f.word) });
             return true;
         }
         stats.blocked++;
         const muted = strike(ip, nickname);
-        addLog({ ip, nickname, message: text, reason: 'bad word', words: found.map(f => f.word), muted });
+        addLog({ ip, nickname, message: text, reason: 'bad word', words: r.found.map(f => f.word), muted });
         notify(ws, muted ? `${conf.notice} (Muted for ${conf.muteMinutes} min.)` : conf.notice);
         return false;
     }
@@ -125,6 +131,9 @@ setInterval(() => {     // forget old repeat/strike memory
     const now = Date.now();
     for (const [ip, l] of recent) if (!l.some(r => now - r.t < 5 * 60000)) recent.delete(ip);
     for (const [ip, l] of strikes) if (!l.some(t => now - t < 30 * 60000)) strikes.delete(ip);
+    let changed = false;
+    for (const ip of Object.keys(conf.muted)) if (!(conf.muted[ip].until > now)) { delete conf.muted[ip]; changed = true; }
+    if (changed) saveConf();
 }, 10 * 60000).unref();
 
 function hookInstalled() { try { return fs.readFileSync(CHAT_JS, 'utf8').includes('fmdxChatFilters'); } catch (_) { return false; } }
