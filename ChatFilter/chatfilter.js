@@ -120,7 +120,7 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
         box.innerHTML = `
             ${a.hookInstalled ? '' : `<p style="color:#f66"><b>The chat hook is missing.</b> Run <code>node install.js &lt;FM-DX folder&gt;</code> again and restart FM-DX, otherwise nothing is filtered.</p>`}
             <p class="kv-sub">Checks every chat message before anyone sees it. Messages with bad words (Greek, Greeklish and English,
-              also written like sh!t, ΜΑΛΆΚΑ or f u c k) or spam links are not sent, and only the sender sees a short note. Bad words are stopped for admins too (you can switch that off below); links, repeats and mutes never apply to admins.</p>
+              also when written with symbols, spaces or capitals) or spam links are not sent, and only the sender sees a short note. Bad words are stopped for admins too (you can switch that off below); links, repeats and mutes never apply to admins.</p>
             <div><button data-k="enabled" data-v="true" class="${on('enabled', true)}">✅ On</button><button data-k="enabled" data-v="false" class="${on('enabled', false)}">Off</button></div>
             <h3>When a message has a bad word</h3>
             <div><button data-k="mode" data-v="block" class="${on('mode', 'block')}">🚫 Don't send it</button><button data-k="mode" data-v="hide" class="${on('mode', 'hide')}">✳️ Send it with *** instead of the word</button></div>
