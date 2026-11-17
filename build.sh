@@ -5,5 +5,6 @@ cd "$(dirname "$0")"
 cat src/setup-tab.js src/stationlog.js > StationLog/stationlog.js
 [ -f src/insights.js ] && cat src/setup-tab.js src/insights.js > ListenerInsights/insights.js
 [ -f src/fairshare.js ] && cat src/setup-tab.js src/fairshare.js > FairShare/fairshare.js
-for f in StationLog/stationlog.js ListenerInsights/insights.js FairShare/fairshare.js; do [ -f "$f" ] && node --check "$f"; done
+[ -f src/chatfilter.js ] && cat src/setup-tab.js src/chatfilter.js > ChatFilter/chatfilter.js
+for f in StationLog/stationlog.js ListenerInsights/insights.js FairShare/fairshare.js ChatFilter/chatfilter.js ChatFilter/words.js ChatFilter/chatfilter_server.js; do [ -f "$f" ] && node --check "$f"; done
 echo built

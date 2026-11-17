@@ -2,13 +2,14 @@
 
 *by konvlachos*
 
-Three free plugins that help you run a public FM-DX tuner:
+Four free plugins that help you run a public FM-DX tuner:
 
 | Plugin | What it does for you |
 |---|---|
 | 📒 **Station Log** | Writes down every station your tuner receives, automatically: frequency, PI, station name, place, best signal, first and last heard. You get a list of "what can be received here", with search and Excel download. You can also show the list to your listeners. |
 | 📊 **Listener Insights** | Shows how your server is used: visitors per day, busiest hours and days, most listened stations, countries and how long people stay. Optional weekly summary in Telegram. No IP addresses are stored. |
 | 🎧 **Fair Tuner Sharing** | When several listeners are connected, the one who tunes gets a short turn (2 minutes after the last tune, at most 10 minutes). The others see a friendly countdown instead of the frequency jumping around. You (the admin) can always tune. In its Setup tab you choose the turn length, the longest turn and from how many listeners sharing starts: quick buttons or any number you like (up to 1000 listeners). |
+| 🛡️ **Chat Filter** | Checks every chat message **before anyone sees it**. Messages with bad words (Greek, Greeklish and English, also written like `sh!t`, `ΜΑΛΆΚΑ`, `f u c k`) are not sent, and only the sender sees a short note; their text goes back into the chat box so they can fix it. It also stops the same message sent again and again, and mutes a sender for a while after a few blocked messages. You can add your own words, choose "send it with \*\*\* instead", test a message, and see and mute senders from its Setup tab. Admins are never filtered. |
 
 Each plugin gets its own tab in the **Setup** page (admin panel).
 
@@ -36,9 +37,9 @@ node "%USERPROFILE%\Downloads\fmdx-plugins-main\fmdx-plugins-main\install.js" "C
 
 ### Then (all systems)
 1. Open your FM-DX page, log in as **admin**, open **Setup → Plugins**.
-2. Tick **Station Log**, **Listener Insights** and **Fair Tuner Sharing**, press **Save**.
+2. Tick **Station Log**, **Listener Insights**, **Fair Tuner Sharing** and **Chat Filter**, press **Save**.
 3. **Restart** FM-DX Webserver.
-4. In **Setup** you now have the tabs **Station Log**, **Listener Insights** and **Fair Tuner Sharing**.
+4. In **Setup** you now have the tabs **Station Log**, **Listener Insights**, **Fair Tuner Sharing** and **Chat Filter**.
 
 You can also install only some: add their names at the end of the install line,
 for example `… install.js /home/pi/fm-dx-webserver StationLog ListenerInsights`.
@@ -50,14 +51,22 @@ To remove them: run the same install line with ` --uninstall` at the end, then r
 ## Questions
 
 **Do the plugins slow down my server?**
-No. Station Log looks at the tuner once a second, Listener Insights every 10 seconds. Both only save a small file every 30–60 seconds.
+No. Station Log looks at the tuner once a second, Listener Insights every 10 seconds, and Chat Filter only works when someone sends a chat message. Both only save a small file every 30–60 seconds.
 
 **What does Fair Tuner Sharing change in FM-DX?**
 FM-DX plugins cannot hold back tune commands by themselves, so the installer adds one line to `server/index.js`
 (with a backup). With only one listener connected, nothing changes at all.
 
+**What does Chat Filter change in FM-DX?**
+The same idea: the installer adds one line to `server/chat.js` (backup: `server/chat.js.before-chat-filter`),
+so messages are checked on the server and nobody can get around the filter.
+
+**Will Chat Filter block normal words by mistake?**
+It matches whole words, so words like *γάμος*, *μαλακό*, *cocktail* or *class* pass. Use **Try a message**
+in its Setup tab to check, and add or remove your own words there.
+
 **Where is the data?**
-In the folder `plugins_configs` of your FM-DX folder: `stationlog.json`, `insights.json`, `fairshare.json`.
+In the folder `plugins_configs` of your FM-DX folder: `stationlog.json`, `insights.json`, `fairshare.json`, `chatfilter.json` (+ `chatfilter-log.json`, the stopped messages).
 
 **Telegram summary?**
 Put a file `.fmdx-telegram` in the home folder of the user that runs FM-DX:

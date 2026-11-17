@@ -1,0 +1,115 @@
+// Chat Filter (page part):
+//   - main page: when the filter refuses a message, the text goes back into the chat box
+//     so the sender can fix it
+//   - Setup page: a "Chat Filter" tab with the settings, a tester, the log and muted listeners
+(function () {
+    'use strict';
+    const esc = window.fmdxEsc;
+    const post = async (url, data) => {
+        const r = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data || {}) });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
+        return r.json();
+    };
+
+    // ---------- main page ----------
+    function mainPage() {
+        if (document.getElementById('plugins-tab')) return;
+        const box = document.getElementById('chat-chatbox'), input = document.getElementById('chat-send-message');
+        if (!box || !input) return;
+        let last = '';
+        const send = WebSocket.prototype.send;
+        WebSocket.prototype.send = function (data) {
+            try { if (/\/chat$/.test(this.url) && typeof data === 'string') { const d = JSON.parse(data); if (d && typeof d.message === 'string') last = d.message; } } catch (_) { /* ignore */ }
+            return send.apply(this, arguments);
+        };
+        new MutationObserver(list => {
+            for (const m of list) for (const n of m.addedNodes) {
+                if (n.nodeType === 1 && n.getAttribute('data-id') === '-1' && /Chat Filter/.test(n.textContent) && last && !input.value) {
+                    input.value = last; last = '';
+                }
+            }
+        }).observe(box, { childList: true });
+    }
+
+    // ---------- Setup page ----------
+    const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : new Date(t).toLocaleDateString(); };
+    const REASON = { 'bad word': '🚫 bad word', hidden: '✳️ hidden', repeat: '🔁 repeated', muted: '🔇 while muted' };
+
+    function render(box, a) {
+        const s = a.settings;
+        const on = (k, v) => String(s[k]) === String(v) ? 'kv-on' : '';
+        box.innerHTML = `
+            ${a.hookInstalled ? '' : `<p style="color:#f66"><b>The chat hook is missing.</b> Run <code>node install.js &lt;FM-DX folder&gt;</code> again and restart FM-DX, otherwise nothing is filtered.</p>`}
+            <p class="kv-sub">Checks every chat message before anyone sees it. Messages with bad words (Greek, Greeklish and English,
+              also written like sh!t, ΜΑΛΆΚΑ or f u c k) are not sent, and only the sender sees a short note. Admins are never filtered.</p>
+            <div><button data-k="enabled" data-v="true" class="${on('enabled', true)}">✅ On</button><button data-k="enabled" data-v="false" class="${on('enabled', false)}">Off</button></div>
+            <h3>When a message has a bad word</h3>
+            <div><button data-k="mode" data-v="block" class="${on('mode', 'block')}">🚫 Don't send it</button><button data-k="mode" data-v="hide" class="${on('mode', 'hide')}">✳️ Send it with *** instead of the word</button></div>
+            <h3>Also</h3>
+            <div><button data-k="blockRepeats" data-v="${!s.blockRepeats}" class="${on('blockRepeats', true)}">${s.blockRepeats ? '✅' : '⬜'} Stop the same message sent again (5 min)</button>
+                 <button data-k="checkNicknames" data-v="${!s.checkNicknames}" class="${on('checkNicknames', true)}">${s.checkNicknames ? '✅' : '⬜'} Check nicknames too</button>
+                 <button data-k="useBuiltin" data-v="${!s.useBuiltin}" class="${on('useBuiltin', true)}">${s.useBuiltin ? '✅' : '⬜'} Use the built-in word list (${a.builtin.length})</button></div>
+            <h3>Mute after blocked messages</h3>
+            <div>${[0, 2, 3, 5].map(v => `<button data-k="muteAfter" data-v="${v}" class="${on('muteAfter', v)}">${v ? v + ' blocked' : 'Never'}</button>`).join('')}
+                 <span style="white-space:nowrap;margin-left:8px">for ${[10, 60, 1440].map(v => `<button data-k="muteMinutes" data-v="${v}" class="${on('muteMinutes', v)}">${v < 60 ? v + ' min' : v < 1440 ? '1 hour' : '1 day'}</button>`).join('')}</span></div>
+            <h3>Your own words</h3>
+            <p class="kv-sub">One per line. A word ending in * also blocks longer words that start with it (e.g. <code>troll*</code>). Greek words also catch Greeklish.</p>
+            <textarea class="cf-words" rows="5" style="width:100%;max-width:520px;padding:8px 12px;border-radius:10px;border:0">${esc(s.words.join('\n'))}</textarea>
+            <div><button data-act="words">💾 Save words</button></div>
+            <h3>Note the sender sees</h3>
+            <input class="cf-notice" type="text" maxlength="300" value="${esc(s.notice)}" style="width:100%;max-width:720px;padding:7px 12px;border-radius:10px;border:0;margin-bottom:6px">
+            <div><button data-act="notice">💾 Save note</button></div>
+            <h3>Try a message</h3>
+            <input class="cf-test" type="text" placeholder="type a message to test" style="width:100%;max-width:520px;padding:7px 12px;border-radius:10px;border:0;margin-bottom:6px">
+            <div><button data-act="test">Test</button> <span class="cf-result"></span></div>
+            <h3>Since the last restart</h3>
+            <div class="kv-cards"><div class="kv-card"><b>${a.stats.checked}</b>messages checked</div><div class="kv-card"><b>${a.stats.blocked}</b>blocked</div>
+              <div class="kv-card"><b>${a.stats.hidden}</b>words hidden</div><div class="kv-card"><b>${a.stats.repeats}</b>repeats stopped</div><div class="kv-card"><b>${a.stats.mutes}</b>mutes</div></div>
+            <h3>Muted now</h3>
+            ${a.muted.length ? `<table><tr><th>Nickname</th><th>Address</th><th>Time left</th><th>Why</th><th></th></tr>${a.muted.map(m => `<tr><td>${esc(m.nickname)}</td><td>${esc(m.ip)}</td><td>${m.minutesLeft} min</td><td>${esc(m.reason)}</td><td><button data-unmute="${esc(m.ip)}">Unmute</button></td></tr>`).join('')}</table>` : '<div class="kv-empty">Nobody.</div>'}
+            <h3>Stopped messages</h3>
+            ${a.log.length ? `<table><tr><th>When</th><th>Nickname</th><th>Message</th><th>Why</th><th>Address</th><th></th></tr>${a.log.map(e => `<tr><td style="white-space:nowrap">${ago(e.t)}</td><td>${esc(e.nickname)}</td><td>${esc(e.message)}${e.words ? `<br><small style="opacity:.7">${esc(e.words.join(', '))}</small>` : ''}</td><td style="white-space:nowrap">${REASON[e.reason] || esc(e.reason)}${e.muted ? ' → 🔇' : ''}</td><td>${esc(e.ip)}</td><td style="white-space:nowrap"><button data-mute="${esc(e.ip)}" data-nick="${esc(e.nickname)}">🔇 Mute 1 day</button></td></tr>`).join('')}</table>
+              <div style="margin-top:8px"><button data-act="clearlog">Clear the list</button></div>` : '<div class="kv-empty">Nothing stopped yet.</div>'}
+            <details style="margin-top:14px"><summary style="cursor:pointer;opacity:.8">Show the built-in word list</summary><p style="opacity:.8;line-height:1.7">${a.builtin.map(esc).join(', ')}</p></details>`;
+    }
+
+    function setupPage() {
+        let wired = false;
+        window.fmdxSetupTab({ id: 'chatfilter', title: 'Chat Filter', icon: 'fa-comment-slash', onShow: async box => {
+            const run = async (url, data) => { try { render(box, await post(url, data)); } catch (err) { alert('Chat Filter: ' + err.message); } };
+            if (!wired) {
+                wired = true;
+                box.addEventListener('click', async e => {
+                    const b = e.target.closest('button');
+                    if (!b) return;
+                    e.preventDefault();
+                    if (b.dataset.k) {
+                        const v = b.dataset.v;
+                        run('/chatfilter/settings', { [b.dataset.k]: v === 'true' ? true : v === 'false' ? false : /^\d+$/.test(v) ? Number(v) : v });
+                    } else if (b.dataset.act === 'words') run('/chatfilter/settings', { words: box.querySelector('.cf-words').value.split('\n') });
+                    else if (b.dataset.act === 'notice') run('/chatfilter/settings', { notice: box.querySelector('.cf-notice').value });
+                    else if (b.dataset.act === 'clearlog') { if (confirm('Clear the list of stopped messages?')) run('/chatfilter/clearlog'); }
+                    else if (b.dataset.act === 'test') {
+                        const out = box.querySelector('.cf-result');
+                        try {
+                            const r = await post('/chatfilter/test', { text: box.querySelector('.cf-test').value });
+                            out.innerHTML = r.blocked ? `🚫 would be stopped (${esc(r.found.map(f => f.word).join(', '))}) — hidden form: <i>${esc(r.masked)}</i>` : '✅ OK, it would be sent';
+                        } catch (err) { out.textContent = err.message; }
+                    } else if (b.dataset.mute) run('/chatfilter/mute', { ip: b.dataset.mute, nickname: b.dataset.nick, minutes: 1440 });
+                    else if (b.dataset.unmute) run('/chatfilter/unmute', { ip: b.dataset.unmute });
+                });
+                // typing in our boxes must not reach FM-DX's keyboard shortcuts
+                box.addEventListener('keydown', e => {
+                    if (!e.target.matches('input, textarea')) return;
+                    e.stopPropagation();
+                    if (e.key === 'Enter' && e.target.matches('.cf-test')) { e.preventDefault(); box.querySelector('[data-act="test"]').click(); }
+                });
+            }
+            try { render(box, await fetch('/chatfilter/admin', { credentials: 'same-origin' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })); }
+            catch (err) { box.innerHTML = `<div class="kv-empty">Could not load Chat Filter (${esc(err.message)}).</div>`; }
+        } });
+    }
+
+    function start() { setupPage(); mainPage(); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
