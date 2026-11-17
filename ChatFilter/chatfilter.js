@@ -142,9 +142,9 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
             <div>${[0, 2, 3, 5].map(v => `<button data-k="muteAfter" data-v="${v}" class="${on('muteAfter', v)}">${v ? v + ' blocked' : 'Never'}</button>`).join('')}
                  <span style="white-space:nowrap;margin-left:8px">for ${[10, 60, 1440].map(v => `<button data-k="muteMinutes" data-v="${v}" class="${on('muteMinutes', v)}">${v < 60 ? v + ' min' : v < 1440 ? '1 hour' : '1 day'}</button>`).join('')}</span></div>
             <h3>Blocked words</h3>
-            <p class="kv-sub">Any message with one of these words is stopped. Add your own words below; you can remove only the words you added.
+            <p class="kv-sub">Any message with one of these words or phrases is stopped. Add your own words or phrases (e.g. <code>go away</code>) below; you can remove only the ones you added.
               The 🔒 built-in bad words always stay. A word ending in * also blocks longer words that start with it (e.g. <code>troll*</code>). Greek words also catch Greeklish.</p>
-            <div><input class="cf-add" type="text" maxlength="60" placeholder="add a word" style="width:220px;max-width:100%;padding:7px 12px;border-radius:10px;border:0;margin:0 6px 6px 0"><button data-act="add">➕ Add</button></div>
+            <div><input class="cf-add" type="text" maxlength="60" placeholder="add a word or phrase" style="width:220px;max-width:100%;padding:7px 12px;border-radius:10px;border:0;margin:0 6px 6px 0"><button data-act="add">➕ Add</button></div>
             <h3>Your words (${s.words.length})</h3>
             <div class="cf-chips">${s.words.map(w => `<span class="cf-chip cf-mine">${esc(w)}<button data-remove="${esc(w)}" title="Remove">✕</button></span>`).join('') || '<span class="kv-empty">None yet.</span>'}</div>
             <h3>🔒 Built-in bad words (${a.builtin.length}, always on)</h3>

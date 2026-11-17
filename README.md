@@ -9,7 +9,7 @@ Four free plugins that help you run a public FM-DX tuner:
 | 📒 **Station Log** | Writes down every station your tuner receives, automatically: frequency, PI, station name, place, best signal, first and last heard. You get a list of "what can be received here", with search and Excel download. You can also show the list to your listeners. |
 | 📊 **Listener Insights** | Shows how your server is used: visitors per day, busiest hours and days, most listened stations, countries and how long people stay. Optional weekly summary in Telegram. No IP addresses are stored. |
 | 🎧 **Fair Tuner Sharing** | When several listeners are connected, the one who tunes gets a short turn (2 minutes after the last tune, at most 10 minutes). The others see a friendly countdown instead of the frequency jumping around. You (the admin) can always tune. In its Setup tab you choose the turn length, the longest turn and from how many listeners sharing starts: quick buttons or any number you like (up to 1000 listeners). |
-| 🛡️ **Chat Filter** | Checks every chat message **before anyone sees it**. Messages with bad words (Greek, Greeklish and English) are not sent, and only the sender sees a short note; their text goes back into the chat box so they can fix it. It also stops **spam links** (links to your own site and to sites you allow, like fmdx.org, are fine), the same message sent again and again, and mutes a sender for a while after a few blocked messages. In its Setup tab you add your own words (and remove them again) with one click; the built-in bad words always stay. You can also choose "send it with \*\*\* instead", test a message, and see and mute senders. Bad words are stopped for admins too (can be switched off); links, repeats and mutes never apply to admins. |
+| 🛡️ **Chat Filter** | Checks every chat message **before anyone sees it**. Messages with bad words (Greek, Greeklish and English) are not sent, and only the sender sees a short note; their text goes back into the chat box so they can fix it. It also stops **spam links** (links to your own site and to sites you allow, like fmdx.org, are fine), the same message sent again and again, and mutes a sender for a while after a few blocked messages. It knows hundreds of words and phrases (curses like "go to hell" in Greek and English, in any spelling) and leaves normal words alone. In its Setup tab you add your own words or phrases (and remove them again) with one click; the built-in bad words always stay. You can also choose "send it with \*\*\* instead", test a message, and see and mute senders. Bad words are stopped for admins too (can be switched off); links, repeats and mutes never apply to admins. |
 
 Each plugin gets its own tab in the **Setup** page (admin panel).
 
@@ -77,6 +77,10 @@ TELEGRAM_CHAT_ID=123456789
 Listener Insights then sends a short summary every Monday at 09:00.
 
 ---
+
+## Credits
+
+Chat Filter's English list includes the [List of Dirty, Naughty, Obscene and Otherwise Bad Words](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words) (Shutterstock, CC BY 4.0), without its everyday words.
 
 ## License
 
