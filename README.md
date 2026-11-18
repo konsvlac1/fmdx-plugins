@@ -74,6 +74,17 @@ For two or more plugins, write their names with a space between them (e.g. `Stat
 
 To remove them: run the same install line with ` --uninstall` at the end, then restart FM-DX.
 
+### Updating FM-DX on Windows
+
+There is a one-click updater that brings FM-DX Webserver itself up to the latest version **without losing your settings or plugins**: [`update-fm-dx-windows.bat`](update-fm-dx-windows.bat).
+
+1. Download the file, or copy it into your `fm-dx-webserver` folder.
+2. **Close** the FM-DX Webserver window (stop the server).
+3. **Double-click** `update-fm-dx-windows.bat`. It finds your `fm-dx-webserver` folder automatically, backs up your settings and plugins, updates to the latest version, and runs `npm install`.
+4. Start FM-DX Webserver again.
+
+It keeps `config.json`, all your plugins, plugin settings and logins. If it says the plugin hook lines were reset, just open **Setup** and press **🔧 Fix it now** in each plugin.
+
 ---
 
 ## Questions
