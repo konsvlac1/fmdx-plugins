@@ -239,24 +239,26 @@ if ! ( cd "$DIR" && run_as npm ci ); then
 fi
 
 # ---- 5b) ffmpeg check/repair (npm ci re-downloads ffmpeg each run) --------
-# npm ci wipes node_modules, so ffmpeg-static must re-fetch its ffmpeg binary.
-# If that download was blocked, the audio stream crashes with ENOENT; repair it.
+# ffmpeg-static fetches its ffmpeg binary in an install script; npm ci wipes
+# node_modules so it must re-run. Some npm setups block install scripts, so we
+# run the installer directly (node) rather than via npm rebuild, which obeys it.
 FFFAIL=0
 FFBIN="$DIR/node_modules/ffmpeg-static/ffmpeg"
+FFINST="$DIR/node_modules/ffmpeg-static/install.js"
 if [ ! -s "$FFBIN" ]; then
     say ""
     say "ffmpeg is missing (npm ci re-downloads it each run). Repairing..."
-    ( cd "$DIR" && run_as npm rebuild ffmpeg-static ) || true
+    [ -f "$FFINST" ] && ( cd "$DIR" && run_as node "$FFINST" ) || true
     if [ ! -s "$FFBIN" ]; then
         say "Retrying the ffmpeg download..."
-        ( cd "$DIR" && run_as npm rebuild ffmpeg-static ) || true
+        [ -f "$FFINST" ] && ( cd "$DIR" && run_as node "$FFINST" ) || true
     fi
     if [ ! -s "$FFBIN" ]; then
         FFFAIL=1
         say ""
         say "WARNING: could not download ffmpeg automatically. Audio will NOT start"
         say "         until this is fixed. Check the server's internet access, then run"
-        say "         'npm rebuild ffmpeg-static' inside $DIR."
+        say "         'node node_modules/ffmpeg-static/install.js' inside $DIR."
     else
         say "ffmpeg is in place."
     fi

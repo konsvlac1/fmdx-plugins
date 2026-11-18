@@ -239,24 +239,26 @@ if ! ( cd "$DIR" && run_as npm ci ); then
 fi
 
 # ---- 5b) έλεγχος/επιδιόρθωση ffmpeg (το npm ci το κατεβάζει κάθε φορά) -----
-# Το npm ci σβήνει το node_modules, οπότε το ffmpeg-static ξανακατεβάζει το ffmpeg.
-# Αν η λήψη μπλοκαριστεί, ο ήχος σκάει με ENOENT· το επιδιορθώνουμε εδώ.
+# Το ffmpeg-static κατεβάζει το ffmpeg σε install script· το npm ci σβήνει το
+# node_modules, οπότε πρέπει να ξανατρέξει. Κάποια npm μπλοκάρουν τα install
+# scripts, γι' αυτό το τρέχουμε απευθείας (node) αντί για npm rebuild.
 FFFAIL=0
 FFBIN="$DIR/node_modules/ffmpeg-static/ffmpeg"
+FFINST="$DIR/node_modules/ffmpeg-static/install.js"
 if [ ! -s "$FFBIN" ]; then
     say ""
     say "Λείπει το ffmpeg (το npm ci το κατεβάζει κάθε φορά). Γίνεται επιδιόρθωση..."
-    ( cd "$DIR" && run_as npm rebuild ffmpeg-static ) || true
+    [ -f "$FFINST" ] && ( cd "$DIR" && run_as node "$FFINST" ) || true
     if [ ! -s "$FFBIN" ]; then
         say "Νέα προσπάθεια λήψης του ffmpeg..."
-        ( cd "$DIR" && run_as npm rebuild ffmpeg-static ) || true
+        [ -f "$FFINST" ] && ( cd "$DIR" && run_as node "$FFINST" ) || true
     fi
     if [ ! -s "$FFBIN" ]; then
         FFFAIL=1
         say ""
         say "ΠΡΟΣΟΧΗ: δεν κατέβηκε το ffmpeg αυτόματα. Ο ήχος ΔΕΝ θα ξεκινήσει μέχρι"
         say "         να διορθωθεί. Ελέγξτε τη σύνδεση του server και μετά τρέξτε"
-        say "         'npm rebuild ffmpeg-static' μέσα στο $DIR."
+        say "         'node node_modules/ffmpeg-static/install.js' μέσα στο $DIR."
     else
         say "Το ffmpeg είναι στη θέση του."
     fi

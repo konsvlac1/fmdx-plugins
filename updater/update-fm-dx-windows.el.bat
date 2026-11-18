@@ -188,29 +188,27 @@ if not "%NPMERR%"=="0" (
 )
 
 rem ---- elegxos/episkevi ffmpeg (to npm ci to katevazei kathe fora) ---------
-rem  To npm ci svinei to node_modules, opote to ffmpeg-static ksanakatevazei to ffmpeg.exe.
-rem  An i lipsi blokaristei i to svisei to antivirus, ginetai episkevi edo.
+rem  To ffmpeg-static katevazei to ffmpeg.exe sto install script tou. To npm ci
+rem  svinei to node_modules, opote prepei na ksanatreksei. Kapoia npm blokaroun ta
+rem  install scripts, gi' afto to trexoume apefthias (node) parakato.
 set "FFBIN=%DIR%\node_modules\ffmpeg-static\ffmpeg.exe"
+set "FFINST=%DIR%\node_modules\ffmpeg-static\install.js"
 if exist "%FFBIN%" goto :ffmpegok
 echo.
 echo  Leipei to ffmpeg (to npm ci to katevazei kathe fora). Ginetai episkevi...
 rem kata to dynaton: na min svinei to antivirus to ffmpeg.exe (thelei admin; alliws agnoeitai)
 powershell -NoProfile -Command "try { Add-MpPreference -ExclusionPath '%DIR%' -ErrorAction Stop; Write-Host '  prostethike eksairesi sto Windows Defender gia ton fakelo' } catch {}" >nul 2>&1
-pushd "%DIR%"
-call npm rebuild ffmpeg-static
-popd
+if exist "%FFINST%" ( pushd "%DIR%" & node "%FFINST%" & popd )
 if exist "%FFBIN%" goto :ffmpegok
 echo  Nea prospatheia lipsis tou ffmpeg...
-pushd "%DIR%"
-call npm rebuild ffmpeg-static
-popd
+if exist "%FFINST%" ( pushd "%DIR%" & node "%FFINST%" & popd )
 if exist "%FFBIN%" goto :ffmpegok
 echo.
 echo  Den katevike to ffmpeg automata. O ichos DEN tha ksekinisei mexri na diorthothei.
-echo  Pithanotata to antivirus esvise to ffmpeg.exe, i blokaristike i lipsi.
-echo    1) Elegkste tin karantina tou antivirus kai epitrepste ton fakelo:
-echo         %DIR%
-echo    2) Meta trekste:  npm rebuild ffmpeg-static
+echo  Aities: xoris internet, to antivirus esvise to ffmpeg.exe, i to npm blokare to
+echo  install script. Gia na to diorthosete monoi, trekste mesa ston fakelo:
+echo         node node_modules\ffmpeg-static\install.js
+echo    (an pali apotyxei, elegkste tin karantina tou antivirus)
 echo.
 set "FFFAIL=1"
 goto :done
