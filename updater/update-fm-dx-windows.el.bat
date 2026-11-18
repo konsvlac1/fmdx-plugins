@@ -1,22 +1,24 @@
 @echo off
-chcp 65001 >nul
 rem ===========================================================================
-rem  FM-DX Webserver - εργαλείο ενημέρωσης με ένα κλικ για Windows
-rem  του Konstantinos Vlachos
+rem  FM-DX Webserver - ergaleio enimerosis me ena klik gia Windows
+rem  tou Konstantinos Vlachos
 rem
-rem  Ενημερώνει το FM-DX Webserver στην τελευταία έκδοση ΚΡΑΤΩΝΤΑΣ τις
-rem  ρυθμίσεις σας (config.json), όλα τα πρόσθετα, τις ρυθμίσεις τους, τις
-rem  συνδέσεις και το session secret. Τίποτα δικό σας δεν σβήνεται.
+rem  (Ta minimata einai se greeklish epitides: etsi to .bat trexei panta,
+rem   xoris provlimata kodikopoiisis sto parathiro tou cmd.)
 rem
-rem  Πώς χρησιμοποιείται:
-rem    - Πιο εύκολο: βάλτε το αρχείο μέσα στον φάκελο fm-dx-webserver και
-rem      κάντε διπλό κλικ. Ενημερώνει αυτόν τον φάκελο.
-rem    - Ή απλώς διπλό κλικ οπουδήποτε: ψάχνει μόνο του τον φάκελο
-rem      fm-dx-webserver (Desktop, Downloads, Documents, φάκελος χρήστη, C:\).
-rem      Μπορείτε και με το χέρι:  set FMDX_DIR=C:\path\to\fm-dx-webserver
+rem  Enimeronei to FM-DX Webserver stin teleftaia ekdosi KRATONTAS tis
+rem  rythmiseis sas (config.json), ola ta prostheta, tis rythmiseis tous,
+rem  tis syndeseis kai to session secret. Tipota diko sas den svinetai.
 rem
-rem  Χρειάζεται: Node.js (npm). Git αν ο φάκελος είναι git clone· αλλιώς ο
-rem  νέος κώδικας κατεβαίνει ως ZIP.
+rem  Pos xrisimopoieitai:
+rem    - Pio efkolo: valte to arxeio mesa ston fakelo fm-dx-webserver kai
+rem      kante diplo klik. Enimeronei afton ton fakelo.
+rem    - I aplos diplo klik opoudipote: psaxnei mono tou ton fakelo
+rem      fm-dx-webserver (Desktop, Downloads, Documents, fakelos xristi, C:\).
+rem      Mporeite kai me to xeri:  set FMDX_DIR=C:\path\to\fm-dx-webserver
+rem
+rem  Xreiazetai: Node.js (npm). Git an o fakelos einai git clone; alliws o
+rem  neos kodikas katevainei ws ZIP.
 rem ===========================================================================
 
 title FM-DX Webserver updater
@@ -28,23 +30,23 @@ set "DIR="
 
 echo.
 echo  ==============================================
-echo    FM-DX Webserver - ενημέρωση στην τελευταία έκδοση
+echo    FM-DX Webserver - enimerosi stin teleftaia ekdosi
 echo  ==============================================
 echo.
 
-rem ---- 1) βρες τον φάκελο fm-dx-webserver -----------------------------------
-rem (a) φάκελος που ορίσατε με το χέρι έχει προτεραιότητα· αν είναι λάθος, σταματάμε
+rem ---- 1) vres ton fakelo fm-dx-webserver -----------------------------------
+rem (a) fakelos pou orisate me to xeri exei proteraiotita; an einai lathos, stamatame
 if defined FMDX_DIR (
     call :isfmdx "%FMDX_DIR%"
     if not defined DIR (
         echo.
-        echo  Το FMDX_DIR είναι "%FMDX_DIR%" αλλά δεν είναι φάκελος FM-DX Webserver.
+        echo  To FMDX_DIR einai "%FMDX_DIR%" alla den einai fakelos FM-DX Webserver.
         goto :fail
     )
 )
-rem (b) ο φάκελος αυτού του αρχείου
+rem (b) o fakelos autou tou arxeiou
 if not defined DIR if exist "%~dp0package.json" call :isfmdx "%~dp0"
-rem (c) οι συνηθισμένοι φάκελοι
+rem (c) oi synithismenoi fakeloi
 if not defined DIR call :isfmdx "%USERPROFILE%\fm-dx-webserver"
 if not defined DIR call :isfmdx "%USERPROFILE%\Desktop\fm-dx-webserver"
 if not defined DIR call :isfmdx "%USERPROFILE%\Downloads\fm-dx-webserver"
@@ -53,156 +55,156 @@ if not defined DIR call :isfmdx "%USERPROFILE%\OneDrive\Desktop\fm-dx-webserver"
 if not defined DIR call :isfmdx "C:\fm-dx-webserver"
 if not defined DIR call :isfmdx "%PUBLIC%\fm-dx-webserver"
 
-rem (d) τελευταία λύση: ψάξε στον φάκελο χρήστη (λίγο πιο αργό)
+rem (d) teleftaia lysi: psakse ston fakelo xristi (ligo pio argo)
 if not defined DIR (
-    echo  Ψάχνω τον φάκελο fm-dx-webserver, περιμένετε...
+    echo  Psaxno ton fakelo fm-dx-webserver, perimenete...
     for /f "delims=" %%p in ('powershell -NoProfile -Command "Get-ChildItem -Path $env:USERPROFILE -Recurse -Depth 5 -Filter package.json -Force -ErrorAction SilentlyContinue | Where-Object { Select-String -Path $_.FullName -Pattern 'fm-dx-webserver' -SimpleMatch -Quiet } | Select-Object -First 1 -ExpandProperty DirectoryName"') do set "DIR=%%p"
 )
 
 if not defined DIR (
     echo.
-    echo  Δεν βρέθηκε αυτόματα ο φάκελος fm-dx-webserver.
-    echo  Βάλτε αυτό το αρχείο μέσα στον φάκελο και ξανατρέξτε το, ή ορίστε τον με το χέρι:
+    echo  Den vrethike automata o fakelos fm-dx-webserver.
+    echo  Valte auto to arxeio mesa ston fakelo kai ksanatrekste to, i oriste ton me to xeri:
     echo       set FMDX_DIR=C:\path\to\fm-dx-webserver
-    echo  και μετά ξανατρέξτε αυτό το αρχείο.
+    echo  kai meta ksanatrekste auto to arxeio.
     goto :fail
 )
 
-rem αφαίρεσε τυχόν backslash στο τέλος
+rem afaire tyxon backslash sto telos
 if "%DIR:~-1%"=="\" set "DIR=%DIR:~0,-1%"
 
-echo  Βρέθηκε το FM-DX Webserver στο:
+echo  Vrethike to FM-DX Webserver sto:
 echo       %DIR%
 echo.
 set "ANS=Y"
-set /p "ANS=  Να ενημερωθεί ΑΥΤΟΣ ο φάκελος; [Y/N] (προεπιλογή Y): "
+set /p "ANS=  Na enimerothei AFTOS o fakelos? [Y/N] (proepilogi Y): "
 if /i not "%ANS%"=="Y" goto :cancel
 
-rem ---- 2) έλεγχοι -----------------------------------------------------------
+rem ---- 2) elegxoi -----------------------------------------------------------
 where npm >nul 2>&1
 if errorlevel 1 (
     echo.
-    echo  Δεν βρέθηκε το Node.js / npm. Εγκαταστήστε πρώτα το Node.js και ξανατρέξτε το.
+    echo  Den vrethike to Node.js / npm. Egkatastiste prota to Node.js kai ksanatrekste to.
     goto :fail
 )
 
-rem ---- σταμάτα το FM-DX αυτόματα ώστε να μην είναι κλειδωμένα τα αρχεία ------
+rem ---- stamata to FM-DX automata wste na min einai kleidomena ta arxeia -----
 echo.
-echo  Σταματάω το FM-DX Webserver αν τρέχει...
-powershell -NoProfile -Command "$d=('%DIR%').ToLower(); Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -and $_.CommandLine.ToLower().Contains($d) } | ForEach-Object { Write-Host ('  σταμάτησε το FM-DX (node PID ' + $_.ProcessId + ')'); Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+echo  Stamatao to FM-DX Webserver an trexei...
+powershell -NoProfile -Command "$d=('%DIR%').ToLower(); Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -and $_.CommandLine.ToLower().Contains($d) } | ForEach-Object { Write-Host ('  stamatise to FM-DX (node PID ' + $_.ProcessId + ')'); Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
 powershell -NoProfile -Command "Start-Sleep -Seconds 2" >nul 2>&1
 
-rem ---- 3) αντίγραφο ασφαλείας ρυθμίσεων και πρόσθετων -----------------------
+rem ---- 3) antigrafo asfaleias rythmiseon kai prostheton ---------------------
 for /f "delims=" %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss"') do set "STAMP=%%i"
 set "BACKUP=%DIR%-backup-%STAMP%"
 echo.
-echo  Κρατάω αντίγραφο ασφαλείας ρυθμίσεων και πρόσθετων στο:
+echo  Kratao antigrafo asfaleias rythmiseon kai prostheton sto:
 echo       %BACKUP%
 robocopy "%DIR%" "%BACKUP%" config.json .session-secret sessions.json /R:1 /W:1 /NJH /NJS /NFL /NDL >nul
 if exist "%DIR%\plugins"         robocopy "%DIR%\plugins"         "%BACKUP%\plugins"         /E /R:1 /W:1 /NJH /NJS /NFL /NDL >nul
 if exist "%DIR%\plugins_configs" robocopy "%DIR%\plugins_configs" "%BACKUP%\plugins_configs" /E /R:1 /W:1 /NJH /NJS /NFL /NDL >nul
 if exist "%DIR%\web\js\plugins"  robocopy "%DIR%\web\js\plugins"  "%BACKUP%\web\js\plugins"  /E /R:1 /W:1 /NJH /NJS /NFL /NDL >nul
 
-rem ---- 4) ενημέρωση του κώδικα ----------------------------------------------
+rem ---- 4) enimerosi tou kodika ----------------------------------------------
 if exist "%DIR%\.git" goto :gitupdate
 goto :zipupdate
 
 :gitupdate
 echo.
-echo  Ενημέρωση (git)...
+echo  Enimerosi (git)...
 where git >nul 2>&1
 if errorlevel 1 (
-    echo  Είναι git clone αλλά το git δεν είναι εγκατεστημένο. Εγκαταστήστε Git for
-    echo  Windows, ή σβήστε τον φάκελο .git για να γίνει η ενημέρωση με ZIP.
+    echo  Einai git clone alla to git den einai egkatestimeno. Egkatastiste Git for
+    echo  Windows, i svinte ton fakelo .git gia na ginei i enimerosi me ZIP.
     goto :fail
 )
 git config --global --add safe.directory "%DIR%" >nul 2>&1
-rem κράτα αντίγραφο από κάθε αρχείο που ΑΛΛΑΞΑΤΕ εσείς (προσαρμογές) στο backup
-echo  Κρατάω αντίγραφο από τα δικά σας αλλαγμένα αρχεία...
+rem kratise antigrafo apo kathe arxeio pou ALLAKSATE eseis (prosarmoges) sto backup
+echo  Kratao antigrafo apo ta dika sas allagmena arxeia...
 powershell -NoProfile -Command "$d='%DIR%'; $b='%BACKUP%\custom'; Set-Location -LiteralPath $d; @(git diff --name-only HEAD) + @(git ls-files --others --exclude-standard) | Where-Object { $_ } | Sort-Object -Unique | ForEach-Object { $s=Join-Path $d $_; if (Test-Path -LiteralPath $s) { $t=Join-Path $b $_; New-Item -ItemType Directory -Force -Path (Split-Path -Parent $t) | Out-Null; Copy-Item -LiteralPath $s -Destination $t -Force } }" 2>nul
-rem κράτα τις γραμμές των πρόσθετων στα server\chat.js / server\index.js
+rem kratise tis grammes ton prostheton sta server\chat.js / server\index.js
 set "STASHED=0"
 git -C "%DIR%" stash >"%TEMP%\fmdx_stash.txt" 2>&1
 findstr /c:"No local changes" "%TEMP%\fmdx_stash.txt" >nul 2>&1 || set "STASHED=1"
 git -C "%DIR%" pull
 if errorlevel 1 (
     if "%STASHED%"=="1" git -C "%DIR%" stash pop >nul 2>&1
-    echo  Το git pull απέτυχε. Ο φάκελός σας έμεινε ανέπαφος· δεν χάθηκε τίποτα.
+    echo  To git pull apetyxe. O fakelos sas emeine anepafos; den xathike tipota.
     goto :fail
 )
 if "%STASHED%"=="1" (
     git -C "%DIR%" stash pop
     if errorlevel 1 (
         echo.
-        echo  ΣΗΜΕΙΩΣΗ: οι γραμμές των πρόσθετων δεν μπήκαν ξανά σωστά μετά την
-        echo        ενημέρωση. Αφού ξεκινήσει το FM-DX, ανοίξτε το Setup και πατήστε
-        echo        "Fix it now" σε κάθε σχετικό πρόσθετο για να μπουν ξανά.
+        echo  SIMEIOSI: oi grammes ton prostheton den bikan ksana sosta meta tin
+        echo        enimerosi. Afou ksekinisei to FM-DX, anoikste to Setup kai patiste
+        echo        "Fix it now" se kathe sxetiko prostheto gia na bown ksana.
     )
 )
 goto :npminstall
 
 :zipupdate
 echo.
-echo  Δεν είναι git clone - κατεβάζω τον τελευταίο κώδικα ως ZIP...
+echo  Den einai git clone - katevazo ton teleftaio kodika ws ZIP...
 set "ZIP=%TEMP%\fmdx-latest.zip"
 set "EXD=%TEMP%\fmdx-latest"
 if exist "%EXD%" rmdir /s /q "%EXD%" >nul 2>&1
 powershell -NoProfile -Command "try { [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%UPSTREAM%/archive/refs/heads/main.zip' -OutFile '%ZIP%' } catch { exit 1 }"
 if errorlevel 1 (
-    echo  Το κατέβασμα απέτυχε. Ελέγξτε τη σύνδεσή σας και δοκιμάστε ξανά.
+    echo  To katevasma apetyxe. Elegkste ti syndesi sas kai dokimaste ksana.
     goto :fail
 )
 powershell -NoProfile -Command "try { Expand-Archive -Path '%ZIP%' -DestinationPath '%EXD%' -Force } catch { exit 1 }"
 if errorlevel 1 (
-    echo  Δεν μπόρεσα να αποσυμπιέσω το αρχείο.
+    echo  Den mporesa na aposympieso to arxeio.
     goto :fail
 )
-rem κράτα πρώτα αντίγραφο των τωρινών βασικών αρχείων, να μη χαθεί τίποτα custom
-echo  Κρατάω αντίγραφο των τωρινών βασικών αρχείων (να μη χαθεί τίποτα δικό σας)...
+rem kratise prota antigrafo ton torinon vasikon arxeion, na min xathei tipota custom
+echo  Kratao antigrafo ton torinon vasikon arxeion (na min xathei tipota diko sas)...
 robocopy "%DIR%" "%BACKUP%\replaced" /E /R:1 /W:1 /XD node_modules .git plugins plugins_configs "%DIR%\web\js\plugins" /NJH /NJS /NFL /NDL >nul
-echo  Αντιγράφω τον νέο κώδικα (ρυθμίσεις και πρόσθετα μένουν ως έχουν)...
-rem το /XD παραλείπει κάθε φάκελο plugins (και plugins\ ΚΑΙ web\js\plugins),
-rem node_modules, plugins_configs και .git. Το /XF κρατά config και sessions.
+echo  Antigrafo tou neou kodika (rythmiseis kai prostheta menoun ws exoun)...
+rem to /XD paraleipei kathe fakelo plugins (kai plugins\ KAI web\js\plugins),
+rem node_modules, plugins_configs kai .git. To /XF krata config kai sessions.
 robocopy "%EXD%\fm-dx-webserver-main" "%DIR%" /E /R:1 /W:1 ^
     /XD plugins node_modules plugins_configs .git ^
     /XF config.json .session-secret sessions.json ^
     /NJH /NJS /NFL /NDL >nul
 echo.
-echo  ΣΗΜΕΙΩΣΗ (ενημέρωση με ZIP): ανανεώθηκαν τα βασικά αρχεία, οπότε οι γραμμές
-echo        των πρόσθετων στα server\chat.js / server\index.js χάθηκαν. Αφού ξεκινήσει
-echo        το FM-DX, ανοίξτε το Setup και πατήστε "Fix it now" σε κάθε σχετικό πρόσθετο.
+echo  SIMEIOSI (enimerosi me ZIP): ananeothikan ta vasika arxeia, opote oi grammes
+echo        ton prostheton sta server\chat.js / server\index.js xathikan. Afou ksekinisei
+echo        to FM-DX, anoikste to Setup kai patiste "Fix it now" se kathe sxetiko prostheto.
 goto :npminstall
 
 :npminstall
 echo.
-echo  Εγκατάσταση/ενημέρωση εξαρτήσεων (npm install)...
+echo  Egkatastasi/enimerosi eksartiseon (npm install)...
 pushd "%DIR%"
 call npm install
 set "NPMERR=%errorlevel%"
 popd
 if not "%NPMERR%"=="0" (
-    echo  Το npm install ανέφερε πρόβλημα. Ο κώδικας ενημερώθηκε· δοκιμάστε να
-    echo  τρέξετε  npm install  μόνοι σας μέσα στον φάκελο.
+    echo  To npm install anefere provlima. O kodikas enimerothike; dokimaste na
+    echo  treksete  npm install  monoi sas mesa ston fakelo.
 )
 
 :done
 echo.
 echo  ==============================================
-echo    Έτοιμο. Το FM-DX Webserver είναι ενημερωμένο.
-echo    Οι ρυθμίσεις και τα πρόσθετά σας διατηρήθηκαν.
-echo    Υπάρχει αντίγραφο ασφαλείας εδώ αν το χρειαστείτε:
+echo    Etoimo. To FM-DX Webserver einai enimeromeno.
+echo    Oi rythmiseis kai ta prostheta sas diatirithikan.
+echo    Yparxei antigrafo asfaleias edo an to xreiasteite:
 echo       %BACKUP%
 echo  ==============================================
 echo.
 set "ANS=Y"
-set /p "ANS=  Να ξεκινήσει τώρα το FM-DX Webserver; [Y/N] (προεπιλογή Y): "
+set /p "ANS=  Na ksekinisei tora to FM-DX Webserver? [Y/N] (proepilogi Y): "
 if /i "%ANS%"=="Y" (
-    echo  Ξεκινάω το FM-DX Webserver σε νέο παράθυρο...
+    echo  Ksekinao to FM-DX Webserver se neo parathiro...
     pushd "%DIR%"
     start "FM-DX Webserver" cmd /k npm run webserver
     popd
 ) else (
-    echo  Ξεκινήστε μόνοι σας το FM-DX Webserver όποτε είστε έτοιμοι.
+    echo  Ksekiniste monoi sas to FM-DX Webserver opote eiste etoimoi.
 )
 echo.
 pause
@@ -210,19 +212,19 @@ endlocal
 exit /b 0
 
 :cancel
-echo  Ακυρώθηκε. Δεν άλλαξε τίποτα.
+echo  Akyrothike. Den allakse tipota.
 pause
 endlocal
 exit /b 0
 
 :fail
 echo.
-echo  Σταμάτησε. Δεν σβήστηκε τίποτα δικό σας.
+echo  Stamatise. Den svistike tipota diko sas.
 pause
 endlocal
 exit /b 1
 
-rem --- υπορουτίνα: όρισε το DIR αν το %1 είναι πραγματικός φάκελος fm-dx-webserver
+rem --- yporoutina: orise to DIR an to %1 einai pragmatikos fakelos fm-dx-webserver
 :isfmdx
 if defined DIR goto :eof
 if not exist "%~1\package.json" goto :eof
