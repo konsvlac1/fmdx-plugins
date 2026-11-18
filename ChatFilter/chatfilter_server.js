@@ -203,9 +203,12 @@ router.post('/chatfilter/settings', admin, (req, res) => {
     // one word at a time: { add: 'word' } / { remove: 'word' }. A word that is already blocked
     // (built-in or yours, in any spelling: malakas = μαλακας) is not added twice. Only your own
     // words can be removed; the built-in bad words always stay.
+    let addResult;
     if (typeof b.add === 'string' && b.add.trim()) {
         const w = b.add.trim().toLowerCase().slice(0, 60);
-        if (!conf.words.includes(w) && (w.endsWith('*') || !words.check(w, compiled).found.length)) conf.words.push(w);
+        if (conf.words.includes(w)) addResult = 'exists';
+        else if (!w.endsWith('*') && words.check(w, compiled).found.length) addResult = 'builtin';
+        else { conf.words.push(w); addResult = 'added'; }
     }
     if (typeof b.remove === 'string' && b.remove.trim()) {
         const w = b.remove.trim().toLowerCase();
@@ -216,7 +219,7 @@ router.post('/chatfilter/settings', admin, (req, res) => {
     if (typeof b.removeSite === 'string') conf.allowSites = conf.allowSites.filter(x => x !== site(b.removeSite));
     saveConf();
     rebuild();
-    res.json(adminData());
+    res.json({ ...adminData(), addResult });
 });
 router.post('/chatfilter/test', admin, (req, res) => {
     const text = String(body(req).text || '').slice(0, 500), r = words.check(text, compiled);
