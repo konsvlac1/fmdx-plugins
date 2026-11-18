@@ -78,13 +78,13 @@ To remove them: run the same install line with ` --uninstall` at the end, then r
 
 Two one-click updaters bring FM-DX Webserver itself up to the latest version **without losing your settings or plugins**. Both **find the `fm-dx-webserver` folder automatically**, **back up** your settings and plugins first, and **abort without changing anything** if something is not right.
 
-**Windows** — [`update-fm-dx-windows.bat`](update-fm-dx-windows.bat)
+**Windows** — [`update-fm-dx-windows.bat`](updater/update-fm-dx-windows.bat)
 1. Download it, or copy it into your `fm-dx-webserver` folder.
 2. **Close** the FM-DX Webserver window (stop the server).
 3. **Double-click** the file.
 4. Start FM-DX Webserver again.
 
-**Linux / Raspberry Pi** — [`update-fm-dx-linux.sh`](update-fm-dx-linux.sh)
+**Linux / Raspberry Pi** — [`update-fm-dx-linux.sh`](updater/update-fm-dx-linux.sh)
 ```
 # stop FM-DX first, then:
 chmod +x update-fm-dx-linux.sh
