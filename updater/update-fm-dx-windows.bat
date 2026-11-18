@@ -131,12 +131,16 @@ if errorlevel 1 (
     goto :fail
 )
 if "%STASHED%"=="1" (
-    git -C "%DIR%" stash pop
+    git -C "%DIR%" stash pop >nul 2>&1
     if errorlevel 1 (
+        rem pop conflicted: undo it so no merge markers are left in the code
+        git -C "%DIR%" reset --hard HEAD >nul 2>&1
         echo.
-        echo  NOTE: your plugin hook lines did not re-apply cleanly after the
-        echo        update. After starting FM-DX, open Setup and click
-        echo        "Fix it now" in each affected plugin to re-add them.
+        echo  NOTE: your local edits to core files could not be re-applied on top
+        echo        of this update, so the code was reset to the clean latest
+        echo        version. They are NOT lost - saved in the backup under \custom\
+        echo        and in git stash. After starting FM-DX, open Setup and click
+        echo        "Fix it now" in each plugin to re-add the plugin hook lines.
     )
 )
 goto :npminstall

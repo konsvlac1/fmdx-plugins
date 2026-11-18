@@ -181,7 +181,15 @@ if [ "$USE_GIT" = "1" ]; then
         fi
     fi
     if [ "$stashed" = "1" ]; then
-        run_as git -C "$DIR" stash pop || HOOK_NOTE=1
+        if ! run_as git -C "$DIR" stash pop >/dev/null 2>&1; then
+            # pop conflicted: reset to clean upstream so no merge markers remain
+            run_as git -C "$DIR" reset --hard HEAD >/dev/null 2>&1 || true
+            HOOK_NOTE=1
+            say ""
+            say "NOTE: your local edits to core files could not be re-applied on top"
+            say "      of this update, so the code was reset to the clean latest version."
+            say "      They are NOT lost - saved in the backup and in 'git stash'."
+        fi
     fi
 else
     say ""

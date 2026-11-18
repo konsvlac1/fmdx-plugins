@@ -133,12 +133,16 @@ if errorlevel 1 (
     goto :fail
 )
 if "%STASHED%"=="1" (
-    git -C "%DIR%" stash pop
+    git -C "%DIR%" stash pop >nul 2>&1
     if errorlevel 1 (
+        rem pop conflicted: undo it so no merge markers are left in the code
+        git -C "%DIR%" reset --hard HEAD >nul 2>&1
         echo.
-        echo  SIMEIOSI: oi grammes ton prostheton den bikan ksana sosta meta tin
-        echo        enimerosi. Afou ksekinisei to FM-DX, anoikste to Setup kai patiste
-        echo        "Fix it now" se kathe sxetiko prostheto gia na bown ksana.
+        echo  SIMEIOSI: oi dikes sas allages se basika arxeia den bikan ksana panw
+        echo        apo tin enimerosi, opote o kodikas epanefere stin kathari nea
+        echo        ekdosi. DEN xathikan - einai sto backup sto \custom\ kai sto git
+        echo        stash. Afou ksekinisei to FM-DX, anoikste to Setup kai patiste
+        echo        "Fix it now" se kathe prostheto gia na bown ksana oi grammes.
     )
 )
 goto :npminstall

@@ -181,7 +181,15 @@ if [ "$USE_GIT" = "1" ]; then
         fi
     fi
     if [ "$stashed" = "1" ]; then
-        run_as git -C "$DIR" stash pop || HOOK_NOTE=1
+        if ! run_as git -C "$DIR" stash pop >/dev/null 2>&1; then
+            # το pop συγκρούστηκε: επαναφορά στον καθαρό upstream ώστε να μη μείνουν markers
+            run_as git -C "$DIR" reset --hard HEAD >/dev/null 2>&1 || true
+            HOOK_NOTE=1
+            say ""
+            say "ΣΗΜΕΙΩΣΗ: οι δικές σας αλλαγές σε βασικά αρχεία δεν ξαναμπήκαν πάνω"
+            say "          από την ενημέρωση, οπότε ο κώδικας επανήλθε στην καθαρή νέα έκδοση."
+            say "          ΔΕΝ χάθηκαν - είναι στο backup και στο 'git stash'."
+        fi
     fi
 else
     say ""
