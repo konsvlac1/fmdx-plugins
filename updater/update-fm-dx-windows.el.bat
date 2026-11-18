@@ -117,6 +117,9 @@ if errorlevel 1 (
     goto :fail
 )
 git config --global --add safe.directory "%DIR%" >nul 2>&1
+rem κράτα αντίγραφο από κάθε αρχείο που ΑΛΛΑΞΑΤΕ εσείς (προσαρμογές) στο backup
+echo  Κρατάω αντίγραφο από τα δικά σας αλλαγμένα αρχεία...
+powershell -NoProfile -Command "$d='%DIR%'; $b='%BACKUP%\custom'; Set-Location -LiteralPath $d; @(git diff --name-only HEAD) + @(git ls-files --others --exclude-standard) | Where-Object { $_ } | Sort-Object -Unique | ForEach-Object { $s=Join-Path $d $_; if (Test-Path -LiteralPath $s) { $t=Join-Path $b $_; New-Item -ItemType Directory -Force -Path (Split-Path -Parent $t) | Out-Null; Copy-Item -LiteralPath $s -Destination $t -Force } }" 2>nul
 rem κράτα τις γραμμές των πρόσθετων στα server\chat.js / server\index.js
 set "STASHED=0"
 git -C "%DIR%" stash >"%TEMP%\fmdx_stash.txt" 2>&1
@@ -154,6 +157,9 @@ if errorlevel 1 (
     echo  Δεν μπόρεσα να αποσυμπιέσω το αρχείο.
     goto :fail
 )
+rem κράτα πρώτα αντίγραφο των τωρινών βασικών αρχείων, να μη χαθεί τίποτα custom
+echo  Κρατάω αντίγραφο των τωρινών βασικών αρχείων (να μη χαθεί τίποτα δικό σας)...
+robocopy "%DIR%" "%BACKUP%\replaced" /E /R:1 /W:1 /XD node_modules .git plugins plugins_configs "%DIR%\web\js\plugins" /NJH /NJS /NFL /NDL >nul
 echo  Αντιγράφω τον νέο κώδικα (ρυθμίσεις και πρόσθετα μένουν ως έχουν)...
 rem το /XD παραλείπει κάθε φάκελο plugins (και plugins\ ΚΑΙ web\js\plugins),
 rem node_modules, plugins_configs και .git. Το /XF κρατά config και sessions.

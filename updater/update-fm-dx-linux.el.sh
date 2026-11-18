@@ -144,6 +144,23 @@ for d in plugins plugins_configs; do
     [ -d "$DIR/$d" ] && cp -a "$DIR/$d" "$BACKUP/" 2>/dev/null
 done
 [ -d "$DIR/web/js/plugins" ] && cp -a "$DIR/web/js/plugins" "$BACKUP/web/js/" 2>/dev/null
+
+# αν είναι git clone, κράτα και αντίγραφο από κάθε αρχείο που ΑΛΛΑΞΑΤΕ εσείς
+# (δικές σας προσαρμογές + αρχεία που προσθέσατε), ώστε να μη χαθούν ποτέ
+if [ "$USE_GIT" = "1" ]; then
+    CUSTOM="$( { run_as git -C "$DIR" diff --name-only HEAD; run_as git -C "$DIR" ls-files --others --exclude-standard; } 2>/dev/null | sort -u )"
+    if [ -n "$CUSTOM" ]; then
+        n=0
+        while IFS= read -r rel; do
+            [ -n "$rel" ] && [ -e "$DIR/$rel" ] || continue
+            mkdir -p "$BACKUP/custom/$(dirname -- "$rel")" 2>/dev/null
+            cp -a "$DIR/$rel" "$BACKUP/custom/$rel" 2>/dev/null && n=$((n + 1))
+        done <<EOF_CUSTOM
+$CUSTOM
+EOF_CUSTOM
+        [ "$n" -gt 0 ] && say "Κρατήθηκε αντίγραφο από $n δικά σας αλλαγμένα/προσαρμοσμένα αρχεία στο backup (custom/)."
+    fi
+fi
 say "Το αντίγραφο ασφαλείας έτοιμο."
 
 # ---- 4) ενημέρωση του κώδικα ----------------------------------------------
@@ -181,9 +198,11 @@ else
     SRC="$TMP/fm-dx-webserver-main"
     [ -d "$SRC" ] || die "Το αρχείο που κατέβηκε φαίνεται λάθος (δεν υπάρχει fm-dx-webserver-main)."
     say "Αντιγράφω τον νέο κώδικα (ρυθμίσεις και πρόσθετα μένουν ως έχουν)..."
-    # αντίγραψε τα πάντα ΕΚΤΟΣ από τα δικά σας δεδομένα· κράτα πρόσθετα, config και sessions
+    # αντίγραψε τα πάντα ΕΚΤΟΣ από τα δικά σας δεδομένα· κράτα πρόσθετα, config και sessions.
+    # Όποιο βασικό αρχείο αντικατασταθεί, πρώτα μπαίνει στο backup (replaced/), ώστε
+    # ένα αρχείο που προσαρμόσατε να μη σβηστεί σιωπηλά - μένει ανακτήσιμο.
     if command -v rsync >/dev/null 2>&1; then
-        run_as rsync -a \
+        run_as rsync -a --backup --backup-dir="$BACKUP/replaced" \
             --exclude '.git' --exclude 'node_modules' \
             --exclude 'plugins' --exclude 'plugins_configs' \
             --exclude 'web/js/plugins' \
@@ -199,6 +218,12 @@ else
              ! -path './plugins*' ! -path './plugins_configs*' ! -path './web/js/plugins*' \
              ! -name config.json ! -name .session-secret ! -name sessions.json \
              -print ) | while IFS= read -r rel; do
+                 rel="${rel#./}"
+                 # κράτα ό,τι πρόκειται να αλλάξει (διατηρεί τις προσαρμογές σας)
+                 if [ -e "$DIR/$rel" ] && ! cmp -s "$SRC/$rel" "$DIR/$rel"; then
+                     mkdir -p "$BACKUP/replaced/$(dirname -- "$rel")" 2>/dev/null
+                     cp -a "$DIR/$rel" "$BACKUP/replaced/$rel" 2>/dev/null
+                 fi
                  run_as cp -a "$SRC/$rel" "$DIR/$rel"
              done
     fi

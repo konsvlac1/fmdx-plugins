@@ -40,4 +40,6 @@ curl -Ls https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/u
 
 `config.json`, all plugins, plugin settings, logins and the session secret — these are git-ignored by FM-DX, so updating never touches them. A timestamped backup folder is made too, just in case.
 
+**Your own edits are protected.** If you changed any core files yourself (a theme, a tweak, the plugin hook lines), the updater detects them and sets a copy aside in the backup — under `custom/` (files you changed, git installs) or `replaced/` (any core file replaced during a ZIP update) — so an update can never silently overwrite something you customized.
+
 If a run ever says the plugin hook lines were reset, open **Setup** in FM-DX and press **🔧 Fix it now** in each plugin.

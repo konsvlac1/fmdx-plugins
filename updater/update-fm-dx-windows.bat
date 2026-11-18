@@ -117,6 +117,9 @@ if errorlevel 1 (
     goto :fail
 )
 git config --global --add safe.directory "%DIR%" >nul 2>&1
+rem keep a copy of every file YOU changed (your customizations) in the backup
+echo  Keeping a copy of your own changed files...
+powershell -NoProfile -Command "$d='%DIR%'; $b='%BACKUP%\custom'; Set-Location -LiteralPath $d; @(git diff --name-only HEAD) + @(git ls-files --others --exclude-standard) | Where-Object { $_ } | Sort-Object -Unique | ForEach-Object { $s=Join-Path $d $_; if (Test-Path -LiteralPath $s) { $t=Join-Path $b $_; New-Item -ItemType Directory -Force -Path (Split-Path -Parent $t) | Out-Null; Copy-Item -LiteralPath $s -Destination $t -Force } }" 2>nul
 rem keep the plugin hook lines you added to server\chat.js / server\index.js
 set "STASHED=0"
 git -C "%DIR%" stash >"%TEMP%\fmdx_stash.txt" 2>&1
@@ -154,6 +157,9 @@ if errorlevel 1 (
     echo  Could not unzip the download.
     goto :fail
 )
+rem keep a copy of the current core files first, so nothing custom is lost
+echo  Keeping a copy of the current core files (so nothing custom is lost)...
+robocopy "%DIR%" "%BACKUP%\replaced" /E /R:1 /W:1 /XD node_modules .git plugins plugins_configs "%DIR%\web\js\plugins" /NJH /NJS /NFL /NDL >nul
 echo  Copying new code in (your settings and plugins are left alone)...
 rem /XD skips any folder named plugins (covers plugins\ AND web\js\plugins),
 rem node_modules, plugins_configs and .git. /XF keeps your config and sessions.

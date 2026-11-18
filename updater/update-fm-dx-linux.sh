@@ -144,6 +144,23 @@ for d in plugins plugins_configs; do
     [ -d "$DIR/$d" ] && cp -a "$DIR/$d" "$BACKUP/" 2>/dev/null
 done
 [ -d "$DIR/web/js/plugins" ] && cp -a "$DIR/web/js/plugins" "$BACKUP/web/js/" 2>/dev/null
+
+# if this is a git clone, also set aside a copy of every file YOU changed
+# (your own customizations + any files you added), so an update never loses them
+if [ "$USE_GIT" = "1" ]; then
+    CUSTOM="$( { run_as git -C "$DIR" diff --name-only HEAD; run_as git -C "$DIR" ls-files --others --exclude-standard; } 2>/dev/null | sort -u )"
+    if [ -n "$CUSTOM" ]; then
+        n=0
+        while IFS= read -r rel; do
+            [ -n "$rel" ] && [ -e "$DIR/$rel" ] || continue
+            mkdir -p "$BACKUP/custom/$(dirname -- "$rel")" 2>/dev/null
+            cp -a "$DIR/$rel" "$BACKUP/custom/$rel" 2>/dev/null && n=$((n + 1))
+        done <<EOF_CUSTOM
+$CUSTOM
+EOF_CUSTOM
+        [ "$n" -gt 0 ] && say "Kept a copy of your $n changed/custom file(s) in the backup (custom/)."
+    fi
+fi
 say "Backup done."
 
 # ---- 4) update the code ---------------------------------------------------
@@ -181,9 +198,11 @@ else
     SRC="$TMP/fm-dx-webserver-main"
     [ -d "$SRC" ] || die "Downloaded archive looks wrong (no fm-dx-webserver-main)."
     say "Copying new code in (settings and plugins are left alone)..."
-    # copy everything EXCEPT your data; keep plugins, config and sessions
+    # copy everything EXCEPT your data; keep plugins, config and sessions.
+    # Any core file we replace is first moved into the backup (replaced/), so a
+    # file you customized is never silently overwritten - it stays recoverable.
     if command -v rsync >/dev/null 2>&1; then
-        run_as rsync -a \
+        run_as rsync -a --backup --backup-dir="$BACKUP/replaced" \
             --exclude '.git' --exclude 'node_modules' \
             --exclude 'plugins' --exclude 'plugins_configs' \
             --exclude 'web/js/plugins' \
@@ -199,6 +218,12 @@ else
              ! -path './plugins*' ! -path './plugins_configs*' ! -path './web/js/plugins*' \
              ! -name config.json ! -name .session-secret ! -name sessions.json \
              -print ) | while IFS= read -r rel; do
+                 rel="${rel#./}"
+                 # back up any existing file we are about to change (keeps customizations)
+                 if [ -e "$DIR/$rel" ] && ! cmp -s "$SRC/$rel" "$DIR/$rel"; then
+                     mkdir -p "$BACKUP/replaced/$(dirname -- "$rel")" 2>/dev/null
+                     cp -a "$DIR/$rel" "$BACKUP/replaced/$rel" 2>/dev/null
+                 fi
                  run_as cp -a "$SRC/$rel" "$DIR/$rel"
              done
     fi
