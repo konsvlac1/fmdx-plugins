@@ -187,6 +187,36 @@ if not "%NPMERR%"=="0" (
     echo  treksete  npm ci  monoi sas mesa ston fakelo.
 )
 
+rem ---- elegxos/episkevi ffmpeg (to npm ci to katevazei kathe fora) ---------
+rem  To npm ci svinei to node_modules, opote to ffmpeg-static ksanakatevazei to ffmpeg.exe.
+rem  An i lipsi blokaristei i to svisei to antivirus, ginetai episkevi edo.
+set "FFBIN=%DIR%\node_modules\ffmpeg-static\ffmpeg.exe"
+if exist "%FFBIN%" goto :ffmpegok
+echo.
+echo  Leipei to ffmpeg (to npm ci to katevazei kathe fora). Ginetai episkevi...
+rem kata to dynaton: na min svinei to antivirus to ffmpeg.exe (thelei admin; alliws agnoeitai)
+powershell -NoProfile -Command "try { Add-MpPreference -ExclusionPath '%DIR%' -ErrorAction Stop; Write-Host '  prostethike eksairesi sto Windows Defender gia ton fakelo' } catch {}" >nul 2>&1
+pushd "%DIR%"
+call npm rebuild ffmpeg-static
+popd
+if exist "%FFBIN%" goto :ffmpegok
+echo  Nea prospatheia lipsis tou ffmpeg...
+pushd "%DIR%"
+call npm rebuild ffmpeg-static
+popd
+if exist "%FFBIN%" goto :ffmpegok
+echo.
+echo  Den katevike to ffmpeg automata. O ichos DEN tha ksekinisei mexri na diorthothei.
+echo  Pithanotata to antivirus esvise to ffmpeg.exe, i blokaristike i lipsi.
+echo    1) Elegkste tin karantina tou antivirus kai epitrepste ton fakelo:
+echo         %DIR%
+echo    2) Meta trekste:  npm rebuild ffmpeg-static
+echo.
+set "FFFAIL=1"
+goto :done
+:ffmpegok
+echo  To ffmpeg einai sti thesi tou.
+
 :done
 echo.
 echo  ==============================================
@@ -196,8 +226,15 @@ echo    Yparxei antigrafo asfaleias edo an to xreiasteite:
 echo       %BACKUP%
 echo  ==============================================
 echo.
-set "ANS=Y"
-set /p "ANS=  Na ksekinisei tora to FM-DX Webserver? [Y/N] (proepilogi Y): "
+if "%FFFAIL%"=="1" (
+    echo  PROSOXI: to ffmpeg leipei akoma, opote o ichos den tha ksekinisei.
+    echo           Diorthoste to prota kai meta ksekiniste ton server.
+    echo.
+    set "ANS=N"
+) else (
+    set "ANS=Y"
+)
+set /p "ANS=  Na ksekinisei tora to FM-DX Webserver? [Y/N] (proepilogi %ANS%): "
 if /i "%ANS%"=="Y" (
     echo  Ksekinao to FM-DX Webserver se neo parathiro...
     pushd "%DIR%"

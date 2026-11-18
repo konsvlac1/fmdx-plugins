@@ -185,6 +185,36 @@ if not "%NPMERR%"=="0" (
     echo  running  npm ci  yourself inside the folder.
 )
 
+rem ---- ffmpeg check/repair (npm ci re-downloads ffmpeg every run) ----------
+rem  npm ci wipes node_modules, so ffmpeg-static must re-fetch ffmpeg.exe.
+rem  If that download is blocked or antivirus removes it, repair it here.
+set "FFBIN=%DIR%\node_modules\ffmpeg-static\ffmpeg.exe"
+if exist "%FFBIN%" goto :ffmpegok
+echo.
+echo  ffmpeg is missing (npm ci re-downloads it each run). Repairing...
+rem best effort: keep antivirus from deleting ffmpeg.exe (needs admin; ignored otherwise)
+powershell -NoProfile -Command "try { Add-MpPreference -ExclusionPath '%DIR%' -ErrorAction Stop; Write-Host '  added a Windows Defender exclusion for the folder' } catch {}" >nul 2>&1
+pushd "%DIR%"
+call npm rebuild ffmpeg-static
+popd
+if exist "%FFBIN%" goto :ffmpegok
+echo  Retrying the ffmpeg download...
+pushd "%DIR%"
+call npm rebuild ffmpeg-static
+popd
+if exist "%FFBIN%" goto :ffmpegok
+echo.
+echo  Could not download ffmpeg automatically. Audio will NOT start until fixed.
+echo  Most likely your antivirus removed ffmpeg.exe, or the download was blocked.
+echo    1) Check your antivirus quarantine and allow this folder:
+echo         %DIR%
+echo    2) Then run:  npm rebuild ffmpeg-static
+echo.
+set "FFFAIL=1"
+goto :done
+:ffmpegok
+echo  ffmpeg is in place.
+
 :done
 echo.
 echo  ==============================================
@@ -194,8 +224,15 @@ echo    A backup is here if you need it:
 echo       %BACKUP%
 echo  ==============================================
 echo.
-set "ANS=Y"
-set /p "ANS=  Start FM-DX Webserver now? [Y/N] (default Y): "
+if "%FFFAIL%"=="1" (
+    echo  WARNING: ffmpeg is still missing, so FM-DX audio will not start.
+    echo           Fix that first, then start the server.
+    echo.
+    set "ANS=N"
+) else (
+    set "ANS=Y"
+)
+set /p "ANS=  Start FM-DX Webserver now? [Y/N] (default %ANS%): "
 if /i "%ANS%"=="Y" (
     echo  Starting FM-DX Webserver in a new window...
     pushd "%DIR%"
