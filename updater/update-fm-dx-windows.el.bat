@@ -177,14 +177,14 @@ goto :npminstall
 
 :npminstall
 echo.
-echo  Egkatastasi/enimerosi eksartiseon (npm install)...
+echo  Egkatastasi/enimerosi eksartiseon (npm ci)...
 pushd "%DIR%"
-call npm install
+call npm ci
 set "NPMERR=%errorlevel%"
 popd
 if not "%NPMERR%"=="0" (
-    echo  To npm install anefere provlima. O kodikas enimerothike; dokimaste na
-    echo  treksete  npm install  monoi sas mesa ston fakelo.
+    echo  To npm ci anefere provlima. O kodikas enimerothike; dokimaste na
+    echo  treksete  npm ci  monoi sas mesa ston fakelo.
 )
 
 :done

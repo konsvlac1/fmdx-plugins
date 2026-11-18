@@ -175,14 +175,14 @@ goto :npminstall
 
 :npminstall
 echo.
-echo  Installing/updating dependencies (npm install)...
+echo  Installing/updating dependencies (npm ci)...
 pushd "%DIR%"
-call npm install
+call npm ci
 set "NPMERR=%errorlevel%"
 popd
 if not "%NPMERR%"=="0" (
-    echo  npm install reported a problem. The code was still updated; try
-    echo  running  npm install  yourself inside the folder.
+    echo  npm ci reported a problem. The code was still updated; try
+    echo  running  npm ci  yourself inside the folder.
 )
 
 :done

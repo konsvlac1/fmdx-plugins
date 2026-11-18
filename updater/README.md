@@ -4,7 +4,7 @@
 
 Update **FM-DX Webserver** to the latest version with **one command**. It keeps all your settings and plugins, and does everything else for you:
 
-> stops the server → backs up your settings and plugins → finds the folder → updates to the latest version → `npm install` → starts the server again.
+> stops the server → backs up your settings and plugins → finds the folder → updates to the latest version → `npm ci` → starts the server again.
 
 You only press **Y** once to confirm the folder. If anything is not right, it stops and changes nothing.
 

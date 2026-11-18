@@ -232,10 +232,10 @@ fi
 
 # ---- 5) dependencies ------------------------------------------------------
 say ""
-say "Installing/updating dependencies (npm install)..."
-if ! ( cd "$DIR" && run_as npm install ); then
-    say "WARNING: npm install reported a problem. The code was still updated;"
-    say "         try running 'npm install' yourself inside the folder."
+say "Installing/updating dependencies (npm ci)..."
+if ! ( cd "$DIR" && run_as npm ci ); then
+    say "WARNING: npm ci reported a problem. The code was still updated;"
+    say "         try running 'npm ci' yourself inside the folder."
 fi
 
 # ---- 6) done --------------------------------------------------------------
