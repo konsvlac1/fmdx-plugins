@@ -74,16 +74,25 @@ For two or more plugins, write their names with a space between them (e.g. `Stat
 
 To remove them: run the same install line with ` --uninstall` at the end, then restart FM-DX.
 
-### Updating FM-DX on Windows
+### Updating FM-DX (Linux or Windows)
 
-There is a one-click updater that brings FM-DX Webserver itself up to the latest version **without losing your settings or plugins**: [`update-fm-dx-windows.bat`](update-fm-dx-windows.bat).
+Two one-click updaters bring FM-DX Webserver itself up to the latest version **without losing your settings or plugins**. Both **find the `fm-dx-webserver` folder automatically**, **back up** your settings and plugins first, and **abort without changing anything** if something is not right.
 
-1. Download the file, or copy it into your `fm-dx-webserver` folder.
+**Windows** — [`update-fm-dx-windows.bat`](update-fm-dx-windows.bat)
+1. Download it, or copy it into your `fm-dx-webserver` folder.
 2. **Close** the FM-DX Webserver window (stop the server).
-3. **Double-click** `update-fm-dx-windows.bat`. It finds your `fm-dx-webserver` folder automatically, backs up your settings and plugins, updates to the latest version, and runs `npm install`.
+3. **Double-click** the file.
 4. Start FM-DX Webserver again.
 
-It keeps `config.json`, all your plugins, plugin settings and logins. If it says the plugin hook lines were reset, just open **Setup** and press **🔧 Fix it now** in each plugin.
+**Linux / Raspberry Pi** — [`update-fm-dx-linux.sh`](update-fm-dx-linux.sh)
+```
+# stop FM-DX first, then:
+chmod +x update-fm-dx-linux.sh
+./update-fm-dx-linux.sh
+```
+You can also give the folder by hand (`./update-fm-dx-linux.sh /home/pi/fm-dx-webserver`) or run it unattended with `-y`. If a `fm-dx-webserver` systemd service exists, it offers to restart it for you.
+
+Both keep `config.json`, all plugins, plugin settings and logins. If they say the plugin hook lines were reset, open **Setup** and press **🔧 Fix it now** in each plugin.
 
 ---
 

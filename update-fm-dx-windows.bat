@@ -33,10 +33,17 @@ echo  ==============================================
 echo.
 
 rem ---- 1) find the fm-dx-webserver folder ----------------------------------
-rem (a) this script's own folder
-if exist "%~dp0package.json" call :isfmdx "%~dp0"
-rem (b) a folder you set by hand
-if not defined DIR if defined FMDX_DIR call :isfmdx "%FMDX_DIR%"
+rem (a) a folder you set by hand wins; if it is set but wrong, we abort
+if defined FMDX_DIR (
+    call :isfmdx "%FMDX_DIR%"
+    if not defined DIR (
+        echo.
+        echo  FMDX_DIR is set to "%FMDX_DIR%" but that is not an FM-DX Webserver folder.
+        goto :fail
+    )
+)
+rem (b) this script's own folder
+if not defined DIR if exist "%~dp0package.json" call :isfmdx "%~dp0"
 rem (c) the usual places
 if not defined DIR call :isfmdx "%USERPROFILE%\fm-dx-webserver"
 if not defined DIR call :isfmdx "%USERPROFILE%\Desktop\fm-dx-webserver"
