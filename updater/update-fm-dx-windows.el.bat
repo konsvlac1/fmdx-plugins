@@ -76,8 +76,22 @@ if "%DIR:~-1%"=="\" set "DIR=%DIR:~0,-1%"
 echo  Vrethike to FM-DX Webserver sto:
 echo       %DIR%
 echo.
+set "SUSP="
+echo %DIR%|findstr /i /c:"\Downloads\" /c:"\Temp\" >nul && set "SUSP=1"
+if defined SUSP (
+    echo  PROSOXI: aftos o fakelos einai mesa sto Downloads i Temp. Sinithos einai
+    echo  ena prosorino antigrafo, OXI o pragmatikos sas server, kai ta Windows
+    echo  mporoun na sbisoun mona tous ta Temp/Downloads. Valte to FM-DX se enan
+    echo  monimo fakelo opos C:\FM-DX-Webserver kai trekste to apo ekei.
+    echo.
+)
 set "ANS=Y"
-set /p "ANS=  Na enimerothei AFTOS o fakelos? [Y/N] (proepilogi Y): "
+if defined SUSP set "ANS=N"
+if defined SUSP (
+    set /p "ANS=  Na enimerothei aftos o prosorinos fakelos? [Y/N] (proepilogi N): "
+) else (
+    set /p "ANS=  Na enimerothei AFTOS o fakelos? [Y/N] (proepilogi Y): "
+)
 if /i not "%ANS%"=="Y" goto :cancel
 
 rem ---- 2) elegxoi -----------------------------------------------------------

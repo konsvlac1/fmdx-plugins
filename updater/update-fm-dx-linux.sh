@@ -82,6 +82,15 @@ is_fmdx "$DIR" || die "'$DIR' does not look like an FM-DX Webserver folder (no m
 say ""
 say "Found FM-DX Webserver at:"
 say "    $DIR"
+case "$DIR" in
+    */[Dd]ownloads/*|/tmp/*|*/[Tt]mp/*|/var/tmp/*)
+        say ""
+        say "WARNING: this folder is inside a Downloads or temp location. That is"
+        say "usually a one-off extracted copy, NOT your real installed server, and"
+        say "the system may clear temp folders on its own. Put FM-DX in a permanent"
+        say "folder (e.g. /opt/fm-dx-webserver or your home dir) and run this there."
+        ;;
+esac
 ask "Update THIS folder?" || die "Cancelled."
 
 # ---- 2) validate the environment (abort if anything is missing) -----------

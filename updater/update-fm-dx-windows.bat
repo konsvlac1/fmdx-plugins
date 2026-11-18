@@ -74,8 +74,22 @@ if "%DIR:~-1%"=="\" set "DIR=%DIR:~0,-1%"
 echo  Found FM-DX Webserver at:
 echo       %DIR%
 echo.
+set "SUSP="
+echo %DIR%|findstr /i /c:"\Downloads\" /c:"\Temp\" >nul && set "SUSP=1"
+if defined SUSP (
+    echo  WARNING: this folder is inside Downloads or Temp. That is usually a
+    echo  one-off extracted copy, NOT your real installed server, and Windows
+    echo  may delete Temp/Downloads contents on its own. Put FM-DX in a
+    echo  permanent folder such as C:\FM-DX-Webserver and run this from there.
+    echo.
+)
 set "ANS=Y"
-set /p "ANS=  Update THIS folder? [Y/N] (default Y): "
+if defined SUSP set "ANS=N"
+if defined SUSP (
+    set /p "ANS=  Update this temporary-looking folder anyway? [Y/N] (default N): "
+) else (
+    set /p "ANS=  Update THIS folder? [Y/N] (default Y): "
+)
 if /i not "%ANS%"=="Y" goto :cancel
 
 rem ---- 2) checks ------------------------------------------------------------
