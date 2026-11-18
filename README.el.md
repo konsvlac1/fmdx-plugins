@@ -84,12 +84,12 @@ sudo node fmdx-plugins-main/install.js /home/pi/fm-dx-webserver ChatFilter
 
 **Windows** — σε παράθυρο `cmd`:
 ```
-curl -Ls -o "%TEMP%\fmdx-update.bat" https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-windows.bat && "%TEMP%\fmdx-update.bat"
+curl -Ls -o "%TEMP%\fmdx-update.bat" https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-windows.el.bat && "%TEMP%\fmdx-update.bat"
 ```
 
 **Linux / Raspberry Pi** — σε ένα terminal:
 ```
-curl -Ls https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-linux.sh | bash
+curl -Ls https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-linux.el.sh | bash
 ```
 
 Κρατάει το `config.json`, όλα τα πρόσθετα, τις ρυθμίσεις τους και τις συνδέσεις. Αν σας πει ότι χάθηκαν οι γραμμές των πρόσθετων, ανοίξτε το **Setup** και πατήστε **🔧 Fix it now** σε κάθε πρόσθετο.

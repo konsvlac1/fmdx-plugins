@@ -15,7 +15,7 @@
 Πατήστε το **πλήκτρο Windows**, γράψτε **cmd**, πατήστε **Enter** και επικολλήστε αυτή τη **μία γραμμή**:
 
 ```
-curl -Ls -o "%TEMP%\fmdx-update.bat" https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-windows.bat && "%TEMP%\fmdx-update.bat"
+curl -Ls -o "%TEMP%\fmdx-update.bat" https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-windows.el.bat && "%TEMP%\fmdx-update.bat"
 ```
 
 Αυτό ήταν. (Αν δεν βρει τον φάκελο, τρέξτε πρώτα `set FMDX_DIR=C:\path\to\fm-dx-webserver` και μετά ξαναεπικολλήστε τη γραμμή.)
@@ -25,13 +25,13 @@ curl -Ls -o "%TEMP%\fmdx-update.bat" https://raw.githubusercontent.com/konsvlac1
 Επικολλήστε αυτή τη **μία γραμμή** σε ένα terminal:
 
 ```
-curl -Ls https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-linux.sh | bash
+curl -Ls https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-linux.el.sh | bash
 ```
 
 Για συγκεκριμένο φάκελο, ή για να παραλείψετε όλες τις ερωτήσεις, προσθέστε ορίσματα:
 
 ```
-curl -Ls https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-linux.sh | bash -s -- -y /home/pi/fm-dx-webserver
+curl -Ls https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-linux.el.sh | bash -s -- -y /home/pi/fm-dx-webserver
 ```
 
 ---
