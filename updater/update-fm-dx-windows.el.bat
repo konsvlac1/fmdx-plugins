@@ -182,6 +182,8 @@ goto :npminstall
 :npminstall
 echo.
 echo  Egkatastasi/enimerosi eksartiseon (npm ci)...
+echo  An fainetai na kollaei sto "reify" gia ligo, einai fisiologiko - sinithos
+echo  einai to antivirus pou saronei ta nea arxeia, den exei kollisei. Perimenete.
 pushd "%DIR%"
 call npm ci
 set "NPMERR=%errorlevel%"

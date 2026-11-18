@@ -180,6 +180,8 @@ goto :npminstall
 :npminstall
 echo.
 echo  Installing/updating dependencies (npm ci)...
+echo  If it seems to pause on "reify" for a while, that is normal - it is
+echo  usually your antivirus scanning the new files, not a freeze. Wait a minute.
 pushd "%DIR%"
 call npm ci
 set "NPMERR=%errorlevel%"

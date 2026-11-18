@@ -241,6 +241,8 @@ fi
 # ---- 5) dependencies ------------------------------------------------------
 say ""
 say "Installing/updating dependencies (npm ci)..."
+say "  If it seems to pause for a while, that is normal - npm is writing the"
+say "  packages to disk. It is not frozen; give it a minute."
 if ! ( cd "$DIR" && run_as npm ci ); then
     say "WARNING: npm ci reported a problem. The code was still updated;"
     say "         try running 'npm ci' yourself inside the folder."
