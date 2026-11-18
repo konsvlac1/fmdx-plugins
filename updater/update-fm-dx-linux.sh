@@ -113,9 +113,22 @@ run_as() { if [ "$NEED_SUDO" = "1" ]; then sudo -u "$OWNER" -H -- "$@"; else "$@
 
 [ -w "$DIR" ] || [ "$NEED_SUDO" = "1" ] || die "No write permission on '$DIR'. Run as '$OWNER' or with sudo."
 
-say ""
-say "IMPORTANT: stop the FM-DX Webserver first so files are not locked."
-ask "Is it stopped (or ok to continue)?" || die "Stop FM-DX, then run this again."
+# stop a running server so its files are not in use (restarted at the end)
+STOPPED_SERVICE=0
+HAS_SERVICE=0
+if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files 2>/dev/null | grep -q '^fm-dx-webserver\.service'; then
+    HAS_SERVICE=1
+    if systemctl is-active --quiet fm-dx-webserver.service; then
+        say ""
+        say "Stopping the fm-dx-webserver service..."
+        if [ "$(id -u)" = "0" ]; then systemctl stop fm-dx-webserver.service && STOPPED_SERVICE=1
+        else sudo systemctl stop fm-dx-webserver.service && STOPPED_SERVICE=1; fi
+    fi
+else
+    say ""
+    say "If FM-DX Webserver is running, stop it now so its files are not in use."
+    ask "Stopped (or ok to continue)?" || die "Stop FM-DX, then run this again."
+fi
 
 # ---- 3) backup your settings and plugins ----------------------------------
 STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -214,8 +227,12 @@ if [ "$HOOK_NOTE" = "1" ]; then
     say "      the plugin's \"Fix it now\" button to re-add them."
 fi
 say ""
-# offer to restart a systemd service if one obviously exists
-if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files 2>/dev/null | grep -q '^fm-dx-webserver\.service'; then
+# restart the service: automatically if we stopped it, otherwise offer
+if [ "$STOPPED_SERVICE" = "1" ]; then
+    say "Starting the fm-dx-webserver service again..."
+    if [ "$(id -u)" = "0" ]; then systemctl start fm-dx-webserver.service && say "Started."
+    else sudo systemctl start fm-dx-webserver.service && say "Started."; fi
+elif [ "$HAS_SERVICE" = "1" ]; then
     if ask "Restart the fm-dx-webserver service now?"; then
         if [ "$(id -u)" = "0" ]; then systemctl restart fm-dx-webserver.service && say "Restarted."
         else sudo systemctl restart fm-dx-webserver.service && say "Restarted."; fi

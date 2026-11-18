@@ -80,23 +80,19 @@ sudo node fmdx-plugins-main/install.js /home/pi/fm-dx-webserver ChatFilter
 
 ### Ενημέρωση του FM-DX (Linux ή Windows)
 
-Υπάρχουν δύο εργαλεία ενημέρωσης με ένα κλικ που φέρνουν το ίδιο το FM-DX Webserver στην τελευταία έκδοση **χωρίς να χάσετε τις ρυθμίσεις ή τα πρόσθετά σας**. Και τα δύο **βρίσκουν μόνα τους τον φάκελο `fm-dx-webserver`**, κρατούν **αντίγραφο ασφαλείας** πρώτα, και **σταματούν χωρίς να αλλάξουν τίποτα** αν κάτι δεν είναι σωστό.
+Ενημερώστε το FM-DX Webserver στην τελευταία έκδοση με **μία εντολή** — σταματάει τον server, κρατάει αντίγραφο ασφαλείας ρυθμίσεων και πρόσθετων, ενημερώνει, τρέχει `npm install` και ξεκινάει ξανά τον server, **χωρίς να χάσετε τις ρυθμίσεις ή τα πρόσθετά σας**. Εσείς πατάτε μόνο **Y** μία φορά για τον φάκελο. Αναλυτικά: [`updater/`](updater/).
 
-**Windows** — [`update-fm-dx-windows.bat`](updater/update-fm-dx-windows.bat)
-1. Κατεβάστε το, ή αντιγράψτε το μέσα στον φάκελο `fm-dx-webserver`.
-2. **Κλείστε** το παράθυρο του FM-DX Webserver (σταματήστε τον server).
-3. **Διπλό κλικ** στο αρχείο.
-4. Ξεκινήστε ξανά το FM-DX Webserver.
-
-**Linux / Raspberry Pi** — [`update-fm-dx-linux.sh`](updater/update-fm-dx-linux.sh)
+**Windows** — σε παράθυρο `cmd`:
 ```
-# σταματήστε πρώτα το FM-DX, μετά:
-chmod +x update-fm-dx-linux.sh
-./update-fm-dx-linux.sh
+curl -Ls -o "%TEMP%\fmdx-update.bat" https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-windows.bat && "%TEMP%\fmdx-update.bat"
 ```
-Μπορείτε επίσης να δώσετε τον φάκελο με το χέρι (`./update-fm-dx-linux.sh /home/pi/fm-dx-webserver`) ή να το τρέξετε χωρίς ερωτήσεις με `-y`. Αν υπάρχει service `fm-dx-webserver` στο systemd, προτείνει να το κάνει επανεκκίνηση για εσάς.
 
-Και τα δύο κρατούν το `config.json`, όλα τα πρόσθετα, τις ρυθμίσεις τους και τις συνδέσεις. Αν σας πουν ότι χρειάζεται να μπουν ξανά οι γραμμές των πρόσθετων, ανοίξτε το **Setup** και πατήστε **🔧 Fix it now** σε κάθε πρόσθετο.
+**Linux / Raspberry Pi** — σε ένα terminal:
+```
+curl -Ls https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-linux.sh | bash
+```
+
+Κρατάει το `config.json`, όλα τα πρόσθετα, τις ρυθμίσεις τους και τις συνδέσεις. Αν σας πει ότι χάθηκαν οι γραμμές των πρόσθετων, ανοίξτε το **Setup** και πατήστε **🔧 Fix it now** σε κάθε πρόσθετο.
 
 ---
 

@@ -86,11 +86,11 @@ if errorlevel 1 (
     goto :fail
 )
 
+rem ---- stop FM-DX automatically so its files are not locked -----------------
 echo.
-echo  IMPORTANT: close the FM-DX Webserver window first (stop the server),
-echo  otherwise some files may be locked and the update can fail.
-echo.
-pause
+echo  Stopping FM-DX Webserver if it is running...
+powershell -NoProfile -Command "$d=('%DIR%').ToLower(); Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -and $_.CommandLine.ToLower().Contains($d) } | ForEach-Object { Write-Host ('  stopped FM-DX (node PID ' + $_.ProcessId + ')'); Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+powershell -NoProfile -Command "Start-Sleep -Seconds 2" >nul 2>&1
 
 rem ---- 3) back up your settings and plugins (safety net) --------------------
 for /f "delims=" %%i in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd-HHmmss"') do set "STAMP=%%i"
@@ -187,7 +187,17 @@ echo    Your settings and plugins were kept.
 echo    A backup is here if you need it:
 echo       %BACKUP%
 echo  ==============================================
-echo    Now start FM-DX Webserver again.
+echo.
+set "ANS=Y"
+set /p "ANS=  Start FM-DX Webserver now? [Y/N] (default Y): "
+if /i "%ANS%"=="Y" (
+    echo  Starting FM-DX Webserver in a new window...
+    pushd "%DIR%"
+    start "FM-DX Webserver" cmd /k npm run webserver
+    popd
+) else (
+    echo  Start FM-DX Webserver yourself when you are ready.
+)
 echo.
 pause
 endlocal

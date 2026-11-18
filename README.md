@@ -76,23 +76,19 @@ To remove them: run the same install line with ` --uninstall` at the end, then r
 
 ### Updating FM-DX (Linux or Windows)
 
-Two one-click updaters bring FM-DX Webserver itself up to the latest version **without losing your settings or plugins**. Both **find the `fm-dx-webserver` folder automatically**, **back up** your settings and plugins first, and **abort without changing anything** if something is not right.
+Update FM-DX Webserver to the latest version with **one command** — it stops the server, backs up your settings and plugins, updates, runs `npm install` and starts the server again, **without losing your settings or plugins**. You only press **Y** once to confirm the folder. Full details: [`updater/`](updater/).
 
-**Windows** — [`update-fm-dx-windows.bat`](updater/update-fm-dx-windows.bat)
-1. Download it, or copy it into your `fm-dx-webserver` folder.
-2. **Close** the FM-DX Webserver window (stop the server).
-3. **Double-click** the file.
-4. Start FM-DX Webserver again.
-
-**Linux / Raspberry Pi** — [`update-fm-dx-linux.sh`](updater/update-fm-dx-linux.sh)
+**Windows** — in a `cmd` window:
 ```
-# stop FM-DX first, then:
-chmod +x update-fm-dx-linux.sh
-./update-fm-dx-linux.sh
+curl -Ls -o "%TEMP%\fmdx-update.bat" https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-windows.bat && "%TEMP%\fmdx-update.bat"
 ```
-You can also give the folder by hand (`./update-fm-dx-linux.sh /home/pi/fm-dx-webserver`) or run it unattended with `-y`. If a `fm-dx-webserver` systemd service exists, it offers to restart it for you.
 
-Both keep `config.json`, all plugins, plugin settings and logins. If they say the plugin hook lines were reset, open **Setup** and press **🔧 Fix it now** in each plugin.
+**Linux / Raspberry Pi** — in a terminal:
+```
+curl -Ls https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/update-fm-dx-linux.sh | bash
+```
+
+It keeps `config.json`, all plugins, plugin settings and logins. If it says the plugin hook lines were reset, open **Setup** and press **🔧 Fix it now** in each plugin.
 
 ---
 
