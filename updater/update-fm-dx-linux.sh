@@ -238,6 +238,30 @@ if ! ( cd "$DIR" && run_as npm ci ); then
     say "         try running 'npm ci' yourself inside the folder."
 fi
 
+# ---- 5b) ffmpeg check/repair (npm ci re-downloads ffmpeg each run) --------
+# npm ci wipes node_modules, so ffmpeg-static must re-fetch its ffmpeg binary.
+# If that download was blocked, the audio stream crashes with ENOENT; repair it.
+FFFAIL=0
+FFBIN="$DIR/node_modules/ffmpeg-static/ffmpeg"
+if [ ! -s "$FFBIN" ]; then
+    say ""
+    say "ffmpeg is missing (npm ci re-downloads it each run). Repairing..."
+    ( cd "$DIR" && run_as npm rebuild ffmpeg-static ) || true
+    if [ ! -s "$FFBIN" ]; then
+        say "Retrying the ffmpeg download..."
+        ( cd "$DIR" && run_as npm rebuild ffmpeg-static ) || true
+    fi
+    if [ ! -s "$FFBIN" ]; then
+        FFFAIL=1
+        say ""
+        say "WARNING: could not download ffmpeg automatically. Audio will NOT start"
+        say "         until this is fixed. Check the server's internet access, then run"
+        say "         'npm rebuild ffmpeg-static' inside $DIR."
+    else
+        say "ffmpeg is in place."
+    fi
+fi
+
 # ---- 6) done --------------------------------------------------------------
 say ""
 say "=============================================="
@@ -253,7 +277,10 @@ if [ "$HOOK_NOTE" = "1" ]; then
 fi
 say ""
 # restart the service: automatically if we stopped it, otherwise offer
-if [ "$STOPPED_SERVICE" = "1" ]; then
+if [ "$FFFAIL" = "1" ]; then
+    say "NOT starting FM-DX: ffmpeg is still missing (see the warning above)."
+    say "Fix ffmpeg, then start it yourself: sudo systemctl start fm-dx-webserver.service"
+elif [ "$STOPPED_SERVICE" = "1" ]; then
     say "Starting the fm-dx-webserver service again..."
     if [ "$(id -u)" = "0" ]; then systemctl start fm-dx-webserver.service && say "Started."
     else sudo systemctl start fm-dx-webserver.service && say "Started."; fi

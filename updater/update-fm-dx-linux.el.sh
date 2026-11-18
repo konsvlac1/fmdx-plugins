@@ -238,6 +238,30 @@ if ! ( cd "$DIR" && run_as npm ci ); then
     say "         δοκιμάστε να τρέξετε 'npm ci' μόνοι σας μέσα στον φάκελο."
 fi
 
+# ---- 5b) έλεγχος/επιδιόρθωση ffmpeg (το npm ci το κατεβάζει κάθε φορά) -----
+# Το npm ci σβήνει το node_modules, οπότε το ffmpeg-static ξανακατεβάζει το ffmpeg.
+# Αν η λήψη μπλοκαριστεί, ο ήχος σκάει με ENOENT· το επιδιορθώνουμε εδώ.
+FFFAIL=0
+FFBIN="$DIR/node_modules/ffmpeg-static/ffmpeg"
+if [ ! -s "$FFBIN" ]; then
+    say ""
+    say "Λείπει το ffmpeg (το npm ci το κατεβάζει κάθε φορά). Γίνεται επιδιόρθωση..."
+    ( cd "$DIR" && run_as npm rebuild ffmpeg-static ) || true
+    if [ ! -s "$FFBIN" ]; then
+        say "Νέα προσπάθεια λήψης του ffmpeg..."
+        ( cd "$DIR" && run_as npm rebuild ffmpeg-static ) || true
+    fi
+    if [ ! -s "$FFBIN" ]; then
+        FFFAIL=1
+        say ""
+        say "ΠΡΟΣΟΧΗ: δεν κατέβηκε το ffmpeg αυτόματα. Ο ήχος ΔΕΝ θα ξεκινήσει μέχρι"
+        say "         να διορθωθεί. Ελέγξτε τη σύνδεση του server και μετά τρέξτε"
+        say "         'npm rebuild ffmpeg-static' μέσα στο $DIR."
+    else
+        say "Το ffmpeg είναι στη θέση του."
+    fi
+fi
+
 # ---- 6) τέλος -------------------------------------------------------------
 say ""
 say "=============================================="
@@ -253,7 +277,10 @@ if [ "$HOOK_NOTE" = "1" ]; then
 fi
 say ""
 # ξεκίνα ξανά το service: αυτόματα αν το σταματήσαμε, αλλιώς ρώτα
-if [ "$STOPPED_SERVICE" = "1" ]; then
+if [ "$FFFAIL" = "1" ]; then
+    say "ΔΕΝ ξεκινάω το FM-DX: λείπει ακόμα το ffmpeg (δείτε την προειδοποίηση πιο πάνω)."
+    say "Διορθώστε το ffmpeg και ξεκινήστε το μόνοι: sudo systemctl start fm-dx-webserver.service"
+elif [ "$STOPPED_SERVICE" = "1" ]; then
     say "Ξεκινάω ξανά το service fm-dx-webserver..."
     if [ "$(id -u)" = "0" ]; then systemctl start fm-dx-webserver.service && say "Ξεκίνησε."
     else sudo systemctl start fm-dx-webserver.service && say "Ξεκίνησε."; fi
