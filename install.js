@@ -11,7 +11,7 @@
 // (backups: server/index.js.before-plugin-filter, server/chat.js.before-chat-filter). Safe to run twice.
 const fs = require('fs');
 const path = require('path');
-const ALL = ['StationLog', 'ListenerInsights', 'FairShare', 'ChatFilter'];
+const ALL = ['StationLog', 'ListenerInsights', 'FairShare', 'ChatFilter', 'AntennaAdvisor', 'DXWatch'];
 const args = process.argv.slice(2);
 const uninstall = args.includes('--uninstall');
 const dir = args.find(a => !a.startsWith('--') && !ALL.includes(a));
