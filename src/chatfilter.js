@@ -45,6 +45,13 @@
         return m === String(text || '') ? esc(text) : `<span class="cf-m">${esc(m)}</span><span class="cf-r">${esc(text)}</span>`;
     };
     const wordsOf = e => e.bad || ((e.reason === 'link' || e.reason === 'link hidden' || e.reason === 'repeat') ? [] : (e.words || []));
+    // small line under the "Add" box, so a click never looks like it did nothing
+    function setAddMsg(box, text, kind) {
+        const el = box.querySelector('.cf-addmsg');
+        if (!el) return;
+        el.textContent = text || '';
+        el.style.color = kind === 'ok' ? '#6c6' : kind === 'warn' ? '#fc6' : 'inherit';
+    }
     function render(box, a) {
         const s = a.settings;
         const on = (k, v) => String(s[k]) === String(v) ? 'kv-on' : '';
@@ -70,6 +77,7 @@
             <p class="kv-sub">Any message with one of these words or phrases is stopped. Add your own words or phrases (e.g. <code>go away</code>) below; you can remove only the ones you added.
               The 🔒 built-in bad words always stay. A word ending in * also blocks longer words that start with it (e.g. <code>troll*</code>). A phrase ending in $ only counts at the end of a message that is not a question (e.g. <code>τον παιρνεις $</code>). Greek words also catch Greeklish.</p>
             <div><input class="cf-add" type="text" maxlength="60" placeholder="add a word or phrase" style="width:220px;max-width:100%;padding:7px 12px;border-radius:10px;border:0;margin:0 6px 6px 0"><button data-act="add">➕ Add</button></div>
+            <div class="cf-addmsg" style="font-size:13px;min-height:18px;margin:0 0 4px 2px"></div>
             <h3>Your words (${s.words.length})</h3>
             <div class="cf-chips">${s.words.map(w => `<span class="cf-chip cf-mine">${esc(w)}<button data-remove="${esc(w)}" title="Remove">✕</button></span>`).join('') || '<span class="kv-empty">None yet.</span>'}</div>
             <h3>🔒 Built-in bad words (${a.builtin.length}, always on)</h3>
@@ -93,27 +101,6 @@
             <h3>Stopped messages</h3>
             ${a.log.length ? `<div><button data-act="revealLog">${logShown ? '🙈 Hide messages' : '👁 Show messages'}</button></div>
               <div class="cf-log${logShown ? ' cf-shown' : ''}"><table><tr><th>When</th><th>Nickname</th><th>Message</th><th>Why</th><th>Address</th><th></th></tr>${a.log.map(e => `<tr><td style="white-space:nowrap">${ago(e.t)}</td><td>${both(e.nickname, wordsOf(e))}${e.admin ? ' <small style="color:#bada55">[ADMIN]</small>' : ''}</td><td>${both(e.message, wordsOf(e))}${(e.reason === 'link' || e.reason === 'link hidden') && e.words ? `<br><small style="opacity:.7">🔗 ${esc(e.words.join(', '))}</small>` : ''}</td><td style="white-space:nowrap">${REASON[e.reason] || esc(e.reason)}${e.muted ? ' → 🔇' : ''}</td><td>${esc(e.ip)}</td><td style="white-space:nowrap">${e.admin ? '' : `<button data-mute="${esc(e.ip)}" data-nick="${esc(e.nickname)}">🔇 Mute 1 day</button>`}</td></tr>`).join('')}</table></div>
-              <div style="margin-top:8px"><button data-act="clearlog">Clear the list</button></div>` : '<div class="kv-empty">Nothing stopped yet.</div>'}
-            <h3>🔒 Built-in bad words (${a.builtin.length}, always on)</h3>
-            <div><button data-act="reveal">${shown ? '🙈 Hide words' : '👁 Show words'}</button></div>
-            <div class="cf-chips${shown ? ' cf-shown' : ''}" style="margin-top:4px">${a.builtin.map(w => `<span class="cf-chip" style="padding-right:10px"><span class="cf-m">${esc(mask(w))}</span><span class="cf-r">${esc(w)}</span></span>`).join('')}</div>
-            ${s.blockLinks ? `<h3>Allowed sites (links to these are OK)</h3>
-            <p class="kv-sub">Links to this site are always allowed. A site here also allows its sub-sites (fmdx.org → maps.fmdx.org).</p>
-            <div><input class="cf-site" type="text" maxlength="100" placeholder="e.g. fmdx.org" style="width:220px;max-width:100%;padding:7px 12px;border-radius:10px;border:0;margin:0 6px 6px 0"><button data-act="addsite">➕ Add</button></div>
-            <div class="cf-chips">${s.allowSites.map(x => `<span class="cf-chip cf-mine">${esc(x)}<button data-rmsite="${esc(x)}" title="Remove">✕</button></span>`).join('') || '<span class="kv-empty">None: every link is blocked (except this site).</span>'}</div>` : ''}
-            <h3>Note the sender sees</h3>
-            <input class="cf-notice" type="text" maxlength="300" value="${esc(s.notice)}" style="width:100%;max-width:720px;padding:7px 12px;border-radius:10px;border:0;margin-bottom:6px">
-            <div><button data-act="notice">💾 Save note</button></div>
-            <h3>Try a message</h3>
-            <input class="cf-test" type="text" placeholder="type a message to test" style="width:100%;max-width:520px;padding:7px 12px;border-radius:10px;border:0;margin-bottom:6px">
-            <div><button data-act="test">Test</button> <span class="cf-result"></span></div>
-            <h3>Since the last restart</h3>
-            <div class="kv-cards"><div class="kv-card"><b>${a.stats.checked}</b>messages checked</div><div class="kv-card"><b>${a.stats.blocked}</b>blocked</div>
-              <div class="kv-card"><b>${a.stats.hidden}</b>words hidden</div><div class="kv-card"><b>${a.stats.links || 0}</b>links stopped</div><div class="kv-card"><b>${a.stats.repeats}</b>repeats stopped</div><div class="kv-card"><b>${a.stats.mutes}</b>mutes</div></div>
-            <h3>Muted now</h3>
-            ${a.muted.length ? `<table><tr><th>Nickname</th><th>Address</th><th>Time left</th><th>Why</th><th></th></tr>${a.muted.map(m => `<tr><td>${esc(m.nickname)}</td><td>${esc(m.ip)}</td><td>${m.minutesLeft} min</td><td>${esc(m.reason)}</td><td><button data-unmute="${esc(m.ip)}">Unmute</button></td></tr>`).join('')}</table>` : '<div class="kv-empty">Nobody.</div>'}
-            <h3>Stopped messages</h3>
-            ${a.log.length ? `<table><tr><th>When</th><th>Nickname</th><th>Message</th><th>Why</th><th>Address</th><th></th></tr>${a.log.map(e => `<tr><td style="white-space:nowrap">${ago(e.t)}</td><td>${esc(e.nickname)}${e.admin ? ' <small style="color:#bada55">[ADMIN]</small>' : ''}</td><td>${esc(e.message)}${e.words ? `<br><small style="opacity:.7">${esc(e.words.join(', '))}</small>` : ''}</td><td style="white-space:nowrap">${REASON[e.reason] || esc(e.reason)}${e.muted ? ' → 🔇' : ''}</td><td>${esc(e.ip)}</td><td style="white-space:nowrap">${e.admin ? '' : `<button data-mute="${esc(e.ip)}" data-nick="${esc(e.nickname)}">🔇 Mute 1 day</button>`}</td></tr>`).join('')}</table>
               <div style="margin-top:8px"><button data-act="clearlog">Clear the list</button></div>` : '<div class="kv-empty">Nothing stopped yet.</div>'}`;
     }
 
@@ -150,7 +137,15 @@
                         run('/chatfilter/settings', { [b.dataset.k]: v === 'true' ? true : v === 'false' ? false : /^\d+$/.test(v) ? Number(v) : v });
                     } else if (b.dataset.act === 'add') {
                         const inp = box.querySelector('.cf-add'), w = inp.value.trim();
-                        if (w) run('/chatfilter/settings', { add: w });
+                        if (!w) { inp.focus(); setAddMsg(box, 'Type a word or phrase in the box first, then press Add.', 'warn'); return; }
+                        try {
+                            const a = await post('/chatfilter/settings', { add: w });
+                            render(box, a);
+                            if (a.addResult === 'added') setAddMsg(box, `Added “${w}”. Messages with it are now blocked.`, 'ok');
+                            else if (a.addResult === 'builtin') setAddMsg(box, `“${w}” is already a built-in bad word, so it is already blocked — nothing to add.`, 'warn');
+                            else if (a.addResult === 'exists') setAddMsg(box, `“${w}” is already in your words.`, 'warn');
+                            else setAddMsg(box, '', '');
+                        } catch (err) { alert('Chat Filter: ' + (err.message === 'admin login required' ? 'please reload the page and log in again.' : err.message)); }
                     } else if (b.dataset.act === 'reveal') {
                         shown = !shown;
                         b.textContent = shown ? '🙈 Hide words' : '👁 Show words';
