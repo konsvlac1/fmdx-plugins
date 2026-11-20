@@ -4,7 +4,7 @@
 
 🇬🇷 [Οδηγίες στα ελληνικά](README.el.md)
 
-Four free plugins that help you run a public FM-DX tuner:
+Six free plugins that help you run a public FM-DX tuner:
 
 | Plugin | What it does for you |
 |---|---|
@@ -12,6 +12,8 @@ Four free plugins that help you run a public FM-DX tuner:
 | 📊 **Listener Insights** | Shows how your server is used: visitors per day, busiest hours and days, most listened stations, countries and how long people stay. Optional weekly summary in Telegram. No IP addresses are stored. |
 | 🎧 **Fair Tuner Sharing** | When several listeners are connected, the one who tunes gets a short turn (2 minutes after the last tune, at most 10 minutes). The others see a friendly countdown instead of the frequency jumping around. You (the admin) can always tune. In its Setup tab you choose the turn length, the longest turn and from how many listeners sharing starts: quick buttons or any number you like (up to 1000 listeners). |
 | 🛡️ **Chat Filter** | Checks every chat message **before anyone sees it**. Messages with bad words (Greek, Greeklish and English) are not sent, and only the sender sees a short note; their text goes back into the chat box so they can fix it. It also stops **spam links** (links to your own site and to sites you allow, like fmdx.org, are fine), the same message sent again and again, and mutes a sender for a while after a few blocked messages. It knows hundreds of words and phrases (curses like "go to hell" in Greek and English, in any spelling) and leaves normal words alone. In its Setup tab you add your own words or phrases (and remove them again) with one click; the built-in bad words always stay. You can also choose "send it with \*\*\* instead", test a message, and see and mute senders. Bad words are stopped for admins too (can be switched off); links, repeats and mutes never apply to admins. |
+| 🛰️ **Antenna Advisor** | For tuners with **two or more antennas**: compares them on the frequency you are tuned to and tells you which one receives best (signal, RDS, stereo). It briefly switches each antenna, measures, then puts yours back. Only you (the admin) start a comparison; listeners simply see the recommended antenna. On a single‑antenna tuner it stays hidden. |
+| 📻 **DX Watch** | Watches your receiver's **own live decodes** and alerts you when a station you care about is received — a **PI code**, a **frequency**, or **any new station** you have never heard. Alerts show on the page and can go to **Discord** and **Telegram**, with a cooldown so the same catch isn't repeated. Read‑only: it never changes the tuner. |
 
 Each plugin gets its own tab in the **Setup** page (admin panel).
 
@@ -39,9 +41,9 @@ node "%USERPROFILE%\Downloads\fmdx-plugins-main\fmdx-plugins-main\install.js" "C
 
 ### Then (all systems)
 1. Open your FM-DX page, log in as **admin**, open **Setup → Plugins**.
-2. Tick **Station Log**, **Listener Insights**, **Fair Tuner Sharing** and **Chat Filter**, press **Save**.
+2. Tick **Station Log**, **Listener Insights**, **Fair Tuner Sharing**, **Chat Filter**, **Antenna Advisor** and **DX Watch**, press **Save**.
 3. **Restart** FM-DX Webserver.
-4. In **Setup** you now have the tabs **Station Log**, **Listener Insights**, **Fair Tuner Sharing** and **Chat Filter**.
+4. In **Setup** you now have the tabs **Station Log**, **Listener Insights**, **Fair Tuner Sharing**, **Chat Filter**, **Antenna Advisor** and **DX Watch**. (Antenna Advisor shows only on tuners with two or more antennas.)
 
 ### Only one plugin
 
@@ -54,6 +56,8 @@ Pick the name from this table:
 | 📊 Listener Insights | `ListenerInsights` |
 | 🎧 Fair Tuner Sharing | `FairShare` |
 | 🛡️ Chat Filter | `ChatFilter` |
+| 🛰️ Antenna Advisor | `AntennaAdvisor` |
+| 📻 DX Watch | `DXWatch` |
 
 Example with Chat Filter (write another name from the table instead, if you want another plugin):
 
@@ -95,7 +99,13 @@ It keeps `config.json`, all plugins, plugin settings and logins. If it says the 
 ## Questions
 
 **Do the plugins slow down my server?**
-No. Station Log looks at the tuner once a second, Listener Insights every 10 seconds, and Chat Filter only works when someone sends a chat message. They only save a small file now and then.
+No. Station Log and DX Watch look at the tuner once a second, Listener Insights every 10 seconds, and Chat Filter only works when someone sends a chat message. Antenna Advisor does nothing until you press its button. They only save a small file now and then.
+
+**What does Antenna Advisor change in FM-DX?**
+Nothing permanent. When you press **Compare now** it switches the antenna for a few seconds to measure each one, then puts your antenna back. It needs no extra line in FM-DX. It appears only on tuners with two or more antennas, and only an admin can start a comparison (it briefly flickers everyone's audio while it switches).
+
+**How do I get DX Watch alerts in Discord or Telegram?**
+In the DX Watch Setup tab, paste a Discord **webhook URL** (in Discord: Server Settings → Integrations → Webhooks → New Webhook → Copy URL). For Telegram it uses the same `.fmdx-telegram` file as Listener Insights, or you can type a bot token and chat id in the tab. Press **Send a test alert** to check. Add targets (a PI code, a frequency, or "any new station") in the same tab.
 
 **What does Fair Tuner Sharing change in FM-DX?**
 FM-DX plugins cannot hold back tune commands by themselves, so the installer adds one line to `server/index.js`
@@ -115,7 +125,7 @@ It matches whole words, so words like *γάμος*, *μαλακό*, *cocktail* o
 in its Setup tab to check, and add or remove your own words there.
 
 **Where is the data?**
-In the folder `plugins_configs` of your FM-DX folder: `stationlog.json`, `insights.json`, `fairshare.json`, `chatfilter.json` (+ `chatfilter-log.json`, the stopped messages).
+In the folder `plugins_configs` of your FM-DX folder: `stationlog.json`, `insights.json`, `fairshare.json`, `chatfilter.json` (+ `chatfilter-log.json`, the stopped messages), `antennaadvisor.json` and `dxwatch.json`.
 
 **Telegram summary?**
 Put a file `.fmdx-telegram` in the home folder of the user that runs FM-DX:
