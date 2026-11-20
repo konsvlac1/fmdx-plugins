@@ -72,9 +72,10 @@ global.fmdxCommandFilters.push(filter);
 
 router.get('/fairshare/status', (req, res) => {
     const id = clientId(req), now = Date.now();
+    const exempt = (req.session && req.session.isAdminAuthenticated) || isLocal(visitorIp(req));  // admin / own network: never waiting
     if (holder && !holderConnected()) holder = null;
     const n = listeners().length;
-    const active = conf.enabled && n >= conf.minListeners && !!holder && turnLeft(now) > 0;
+    const active = !exempt && conf.enabled && n >= conf.minListeners && !!holder && turnLeft(now) > 0;
     let you = 'free';
     if (active && holder.id === id) you = [...waiting.entries()].some(([w, t]) => w !== id && now - t < 60000) ? 'holder-waited' : 'holder';
     else if (active) you = 'wait';

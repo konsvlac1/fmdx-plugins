@@ -101,6 +101,19 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
                 bar.style.display = '';
             } else bar.style.display = 'none';
         }
+        let flashT = null;
+        function flash() {                                       // a small nudge so the reminder is noticed
+            bar.style.transition = 'transform .12s ease';
+            bar.style.transform = 'translateX(-50%) scale(1.06)';
+            clearTimeout(flashT);
+            flashT = setTimeout(() => { bar.style.transform = 'translateX(-50%)'; }, 150);
+        }
+        function nudge() {                                       // a tune was blocked: show why, don't move the dial
+            if (left > 0) paint();
+            else { bar.innerHTML = '🎧 Another listener is tuning right now. One moment…'; bar.style.display = ''; }
+            flash();
+            poll();                                              // refresh at once in case the turn just opened up
+        }
         async function poll() {
             try {
                 const s = await fetch('/fairshare/status', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.json());
@@ -114,12 +127,30 @@ window.fmdxApi = window.fmdxApi || (async (method, url) => {
             if (users >= 2 && !timer) { poll(); timer = setInterval(() => { if (!document.hidden) poll(); }, 5000); }
             if (users < 2 && timer) { clearInterval(timer); timer = null; mode = 'free'; left = 0; paint(); }
         }
+        // Keep a waiter's tune from moving the dial at all: swallow outgoing T/Z while it is not their
+        // turn (the server drops them too - this just avoids sending a doomed command and gives instant
+        // feedback). The dial is server-driven, so with nothing sent it simply never moves. Admins and the
+        // own network are never 'wait' (the status endpoint exempts them), so they are never blocked here.
+        function guardSend() {
+            if (typeof socket === 'undefined' || !socket || typeof socket.send !== 'function' || socket._fsGuarded) return;
+            const orig = socket.send;
+            socket.send = function (data) {
+                try { if (mode === 'wait' && typeof data === 'string' && /^[TZ]/.test(data)) { nudge(); return; } } catch (_) { /* fail open */ }
+                return orig.apply(this, arguments);
+            };
+            socket._fsGuarded = true;
+        }
         const hook = () => {
             if (typeof socket === 'undefined' || !socket || !socket.addEventListener) return false;   // FM-DX's own tuner connection
-            socket.addEventListener('message', ev => { try { const d = JSON.parse(ev.data); if (typeof d.users === 'number') setUsers(d.users); } catch (_) { /* ignore */ } });
+            if (!socket._fsMsg) {
+                socket.addEventListener('message', ev => { try { const d = JSON.parse(ev.data); if (typeof d.users === 'number') setUsers(d.users); } catch (_) { /* ignore */ } });
+                socket._fsMsg = true;
+            }
+            guardSend();
             return true;
         };
         if (!hook()) { let n = 0; const t = setInterval(() => { if (hook() || ++n > 20) clearInterval(t); }, 500); }
+        setInterval(hook, 3000);                                 // re-attach after a socket reconnect (flags stop duplicates)
     }
 
     // ---------- Setup page ----------
