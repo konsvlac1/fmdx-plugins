@@ -17,20 +17,26 @@ let conf = { ...DEFAULTS };
 try { conf = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(CONF, 'utf8')) }; } catch (_) { saveConf(); }
 function saveConf() { try { fs.mkdirSync(path.dirname(CONF), { recursive: true }); fs.writeFileSync(CONF, JSON.stringify(conf, null, 2)); } catch (_) { /* ignore */ } }
 
-let holder = null;                 // { ip, since, last }
-const waiting = new Map();         // ip -> last time a tune was held back
+let holder = null;                 // { id, ws, since, last }  id = browser session (cookie); ws = its live socket
+const waiting = new Map();         // session id -> last time a tune was held back
 const stats = { since: Date.now(), turns: 0, heldBack: 0 };
 
 const clean = ip => String(ip || '').trim().replace(/^::ffff:/, '');
 const isLocal = ip => !ip || ip === '127.0.0.1' || ip === '::1' || /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(ip);
-// Visitor address: right-most public address in X-Forwarded-For (our proxies are local)
+// Visitor address: right-most public address in X-Forwarded-For (our proxies are local). Used ONLY for the
+// "own network / admin can always tune" exemption - never to tell listeners apart: IP is a bad identity
+// (NAT, mobile and Cloudflare/CGNAT give many listeners one address, and one listener a changing address).
 function visitorIp(req) {
     const chain = [...String(req.headers['x-forwarded-for'] || '').split(',').map(clean).filter(Boolean), clean(req.socket && req.socket.remoteAddress)].filter(Boolean);
     for (let i = chain.length - 1; i >= 0; i--) if (!isLocal(chain[i])) return chain[i];
     return chain[chain.length - 1] || '';
 }
+// A listener = one browser session. Its id is stable per cookie and is the SAME on the tune socket
+// (request.sessionID, FM-DX runs the session middleware on the ws upgrade) and on the /fairshare/status
+// poll (req.sessionID). Only if a session id is somehow missing do we fall back to the address.
+const clientId = req => (req && req.sessionID) ? 's:' + req.sessionID : 'ip:' + visitorIp(req);
 const listeners = () => (storage.connectedUsers || []).filter(u => clean(u.ip) !== '127.0.0.1' && clean(u.ip) !== '::1');
-const connected = ip => listeners().some(u => clean(u.ip) === ip);
+const holderConnected = () => !!holder && (!holder.ws || listeners().some(u => u.instance === holder.ws));
 
 function turnLeft(now) {
     if (!holder) return 0;
@@ -39,20 +45,24 @@ function turnLeft(now) {
     return Math.max(0, Math.min(byIdle, byMax));
 }
 
-function filter({ request, command, isAdmin }) {
+function filter({ ws, request, command, isAdmin }) {
     if (!conf.enabled || !/^[TZ]/.test(command)) return true;
     const ip = visitorIp(request);
     if (isAdmin || isLocal(ip)) return true;                      // admin and own network: always
+    const id = clientId(request);
     const now = Date.now();
-    if (holder && !connected(holder.ip)) holder = null;           // holder left
-    if (listeners().length < conf.minListeners) { holder = { ip, since: holder && holder.ip === ip ? holder.since : now, last: now }; return true; }
-    if (!holder || holder.ip === ip || turnLeft(now) === 0) {
-        if (!holder || holder.ip !== ip) { holder = { ip, since: now, last: now }; stats.turns++; }
-        else holder.last = now;
-        waiting.delete(ip);
+    if (holder && !holderConnected()) holder = null;              // holder left
+    if (listeners().length < conf.minListeners) {                // too few listeners: no sharing yet
+        holder = { id, ws, since: holder && holder.id === id ? holder.since : now, last: now };
         return true;
     }
-    waiting.set(ip, now);
+    if (!holder || holder.id === id || turnLeft(now) === 0) {
+        if (!holder || holder.id !== id) { holder = { id, ws, since: now, last: now }; stats.turns++; }
+        else { holder.last = now; holder.ws = ws; }               // same session keeps its turn (track its live socket)
+        waiting.delete(id);
+        return true;
+    }
+    waiting.set(id, now);
     stats.heldBack++;
     return false;                                                 // someone else's turn
 }
@@ -61,12 +71,12 @@ global.fmdxCommandFilters = global.fmdxCommandFilters || [];
 global.fmdxCommandFilters.push(filter);
 
 router.get('/fairshare/status', (req, res) => {
-    const ip = visitorIp(req), now = Date.now();
-    if (holder && !connected(holder.ip)) holder = null;
+    const id = clientId(req), now = Date.now();
+    if (holder && !holderConnected()) holder = null;
     const n = listeners().length;
     const active = conf.enabled && n >= conf.minListeners && !!holder && turnLeft(now) > 0;
     let you = 'free';
-    if (active && holder.ip === ip) you = [...waiting.entries()].some(([w, t]) => w !== ip && now - t < 60000) ? 'holder-waited' : 'holder';
+    if (active && holder.id === id) you = [...waiting.entries()].some(([w, t]) => w !== id && now - t < 60000) ? 'holder-waited' : 'holder';
     else if (active) you = 'wait';
     res.set('Cache-Control', 'no-store').json({ enabled: conf.enabled, you, secondsLeft: active ? Math.ceil(turnLeft(now) / 1000) : 0 });
 });
