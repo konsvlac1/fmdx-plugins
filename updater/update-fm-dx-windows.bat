@@ -326,6 +326,7 @@ if /i "%ANS%"=="Y" (
     pushd "%DIR%"
     start "FM-DX Webserver" cmd /k npm run webserver
     popd
+    call :winhealth
 ) else (
     echo  Start FM-DX Webserver yourself when you are ready.
 )
@@ -333,6 +334,23 @@ echo.
 pause
 endlocal
 exit /b 0
+
+:winhealth
+rem  `start` only launches the window - a node app can start then crash. Give it a
+rem  few seconds, then check the port. Best-effort: assumes the default port 8080.
+echo  Checking that FM-DX started (waiting a few seconds)...
+powershell -NoProfile -Command "Start-Sleep -Seconds 8; try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 4 -Uri 'http://127.0.0.1:8080/' | Out-Null; exit 0 } catch { exit 1 }"
+if errorlevel 1 (
+    echo.
+    echo  NOTE: could not confirm FM-DX is answering on http://127.0.0.1:8080 yet - it may
+    echo        still be starting, or it uses a different port. Look at the "FM-DX Webserver"
+    echo        window that just opened: if it shows an error, the update may need attention.
+    echo        Your previous version is backed up here:
+    echo          %BACKUP%
+) else (
+    echo  FM-DX is up and answering on http://127.0.0.1:8080
+)
+goto :eof
 
 :cancel
 echo  Cancelled. Nothing was changed.

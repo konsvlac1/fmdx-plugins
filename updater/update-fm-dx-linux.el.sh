@@ -357,6 +357,40 @@ if [ "$HOOK_NOTE" = "1" ]; then
     say "          πατήστε το κουμπί \"Fix it now\" σε κάθε πρόσθετο."
 fi
 say ""
+# health_check: το `systemctl start` που επιστρέφει 0 σημαίνει μόνο ότι ξεκίνησε η unit -
+# μια node εφαρμογή μπορεί να ξεκινήσει και μετά να κρασάρει. Επιβεβαιώνει ότι είναι ακόμα
+# ζωντανό μετά από λίγα δευτερόλεπτα και (αν υπάρχει curl) ότι απαντά στην πόρτα του. Σε
+# αποτυχία προειδοποιεί και δείχνει τα logs και το backup· ΔΕΝ κάνει επαναφορά μόνο του.
+health_check() {
+    local port code n
+    sleep 6
+    if ! systemctl is-active --quiet fm-dx-webserver.service; then
+        say ""
+        say "ΠΡΟΣΟΧΗ: το FM-DX ξεκίνησε αλλά δεν έμεινε ζωντανό (σταμάτησε μέσα σε λίγα δευτερόλεπτα)."
+        say "         Η προηγούμενη έκδοσή σας έχει αντίγραφο στο:"
+        say "             $BACKUP"
+        say "         Δείτε τι πήγε στραβά με:"
+        say "             journalctl -u fm-dx-webserver.service -n 50 --no-pager"
+        return 1
+    fi
+    port="$(grep -oE '"port"[[:space:]]*:[[:space:]]*[0-9]+' "$DIR/config.json" 2>/dev/null | grep -oE '[0-9]+$' | head -1)"
+    [ -n "$port" ] || port=8080
+    if command -v curl >/dev/null 2>&1; then
+        for n in 1 2 3 4 5; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:$port/" 2>/dev/null || true)"
+            [ "$code" = "200" ] && { say "Το FM-DX είναι πάνω και απαντά στην πόρτα $port."; return 0; }
+            sleep 2
+        done
+        say ""
+        say "ΣΗΜΕΙΩΣΗ: το FM-DX τρέχει, αλλά δεν απάντησε στο http://127.0.0.1:$port μέσα σε ~15s."
+        say "          Ίσως ακόμα ξεκινά, ή η πόρτα στο config.json είναι άλλη. Αν η σελίδα δεν"
+        say "          ανοίγει, δείτε:  journalctl -u fm-dx-webserver.service -n 50 --no-pager"
+        return 0
+    fi
+    say "Το FM-DX τρέχει."
+    return 0
+}
+
 # ξεκίνα ξανά το service: αυτόματα αν το σταματήσαμε, αλλιώς ρώτα
 if [ "$FFFAIL" = "1" ]; then
     say "ΔΕΝ ξεκινάω το FM-DX: λείπει ακόμα το ffmpeg (δείτε την προειδοποίηση πιο πάνω)."
@@ -365,10 +399,12 @@ elif [ "$STOPPED_SERVICE" = "1" ]; then
     say "Ξεκινάω ξανά το service fm-dx-webserver..."
     if [ "$(id -u)" = "0" ]; then systemctl start fm-dx-webserver.service && say "Ξεκίνησε."
     else sudo systemctl start fm-dx-webserver.service && say "Ξεκίνησε."; fi
+    health_check || true
 elif [ "$HAS_SERVICE" = "1" ]; then
     if ask "Να γίνει επανεκκίνηση του service fm-dx-webserver τώρα;"; then
         if [ "$(id -u)" = "0" ]; then systemctl restart fm-dx-webserver.service && say "Έγινε επανεκκίνηση."
         else sudo systemctl restart fm-dx-webserver.service && say "Έγινε επανεκκίνηση."; fi
+        health_check || true
     else
         say "Ξεκινήστε ξανά το FM-DX Webserver όποτε είστε έτοιμοι."
     fi

@@ -328,6 +328,7 @@ if /i "%ANS%"=="Y" (
     pushd "%DIR%"
     start "FM-DX Webserver" cmd /k npm run webserver
     popd
+    call :winhealth
 ) else (
     echo  Ksekiniste monoi sas to FM-DX Webserver opote eiste etoimoi.
 )
@@ -335,6 +336,23 @@ echo.
 pause
 endlocal
 exit /b 0
+
+:winhealth
+rem  to `start` apla anoigei to parathiro - mia node efarmogi mporei na ksekinisei kai
+rem  meta na krasarei. Perimene liga defterolepta kai elegkse tin porta (default 8080).
+echo  Elegxos oti to FM-DX ksekinise (anamoni liga defterolepta)...
+powershell -NoProfile -Command "Start-Sleep -Seconds 8; try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 4 -Uri 'http://127.0.0.1:8080/' | Out-Null; exit 0 } catch { exit 1 }"
+if errorlevel 1 (
+    echo.
+    echo  SIMEIOSI: den epivevaiothike oti to FM-DX apanta sto http://127.0.0.1:8080 akoma -
+    echo           isos akoma ksekinaei, i xrisimopoiei alli porta. Deite to parathiro
+    echo           "FM-DX Webserver" pou molis anoikse: an deixnei sfalma, i enimerosi
+    echo           isos xreiazetai prosoxi. I proigoumeni ekdosi exei antigrafo edo:
+    echo             %BACKUP%
+) else (
+    echo  To FM-DX einai pano kai apanta sto http://127.0.0.1:8080
+)
+goto :eof
 
 :cancel
 echo  Akyrothike. Den allakse tipota.

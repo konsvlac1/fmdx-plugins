@@ -359,6 +359,40 @@ if [ "$HOOK_NOTE" = "1" ]; then
     say "      the plugin's \"Fix it now\" button to re-add them."
 fi
 say ""
+# health_check: `systemctl start` returning 0 only means the unit launched - a node
+# app can start and then crash. Confirm it is still up a few seconds later, and (if
+# curl is present) that it answers on its port. On failure it warns and points to the
+# logs and the backup; it does NOT roll back by itself.
+health_check() {
+    local port code n
+    sleep 6
+    if ! systemctl is-active --quiet fm-dx-webserver.service; then
+        say ""
+        say "WARNING: FM-DX started but did not stay up (it stopped within a few seconds)."
+        say "         Your previous version is backed up in:"
+        say "             $BACKUP"
+        say "         See what went wrong with:"
+        say "             journalctl -u fm-dx-webserver.service -n 50 --no-pager"
+        return 1
+    fi
+    port="$(grep -oE '"port"[[:space:]]*:[[:space:]]*[0-9]+' "$DIR/config.json" 2>/dev/null | grep -oE '[0-9]+$' | head -1)"
+    [ -n "$port" ] || port=8080
+    if command -v curl >/dev/null 2>&1; then
+        for n in 1 2 3 4 5; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://127.0.0.1:$port/" 2>/dev/null || true)"
+            [ "$code" = "200" ] && { say "FM-DX is up and answering on port $port."; return 0; }
+            sleep 2
+        done
+        say ""
+        say "NOTE: FM-DX is running, but it did not answer on http://127.0.0.1:$port within ~15s."
+        say "      It may still be starting, or the port in config.json differs. If the page does"
+        say "      not load, check:  journalctl -u fm-dx-webserver.service -n 50 --no-pager"
+        return 0
+    fi
+    say "FM-DX is running."
+    return 0
+}
+
 # restart the service: automatically if we stopped it, otherwise offer
 if [ "$FFFAIL" = "1" ]; then
     say "NOT starting FM-DX: ffmpeg is still missing (see the warning above)."
@@ -367,10 +401,12 @@ elif [ "$STOPPED_SERVICE" = "1" ]; then
     say "Starting the fm-dx-webserver service again..."
     if [ "$(id -u)" = "0" ]; then systemctl start fm-dx-webserver.service && say "Started."
     else sudo systemctl start fm-dx-webserver.service && say "Started."; fi
+    health_check || true
 elif [ "$HAS_SERVICE" = "1" ]; then
     if ask "Restart the fm-dx-webserver service now?"; then
         if [ "$(id -u)" = "0" ]; then systemctl restart fm-dx-webserver.service && say "Restarted."
         else sudo systemctl restart fm-dx-webserver.service && say "Restarted."; fi
+        health_check || true
     else
         say "Start FM-DX Webserver again when you are ready."
     fi
