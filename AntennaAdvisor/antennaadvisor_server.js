@@ -24,10 +24,13 @@ const STEP_MS = 200;             // sample period
 const KEEP = 300;                // remember results for this many frequencies
 const DEPTHS = { quick: 2000, standard: 3000, thorough: 5000 };   // how long to measure each antenna
 
-let db = { settings: { depth: 'standard' }, results: {} };
+let db = { settings: { depth: 'standard', scanThreshold: 15 }, results: {} };
 try { db = { ...db, ...JSON.parse(fs.readFileSync(DATA, 'utf8')) }; } catch (_) { /* first run */ }
 if (!DEPTHS[db.settings.depth]) db.settings.depth = 'standard';
+if (!(Number(db.settings.scanThreshold) >= 0)) db.settings.scanThreshold = 15;
 let running = false;
+// Progress of a full-band scan (admin starts it, the page polls it).
+let scan = { active: false, cancel: false, done: 0, total: 0, found: 0, current: null, startedAt: 0 };
 const sampleMs = () => DEPTHS[db.settings.depth] || DEPTHS.standard;
 const perAntennaSeconds = () => Math.round((SETTLE_MS + sampleMs()) / 100) / 10;
 
@@ -57,14 +60,23 @@ const currentAntZ = () => { const v = parseInt(String((dataHandler.dataToSend ||
 const curFreq = () => { const f = Number((dataHandler.dataToSend || {}).freq); return isFinite(f) ? f : null; };
 const freqKey = f => (f == null ? '' : Number(f).toFixed(1));
 const sendZ = z => api.sendPrivilegedCommand('Z' + z, true);
+const tuneTo = mhz => api.sendPrivilegedCommand('T' + Math.round(Number(mhz) * 1000), true);
 
-// Switch to antenna z, let it settle, then sample the live data for SAMPLE_MS.
-async function measure(z) {
+// The frequency range to sweep for a full-band scan: the tuner's own limits if sane, else the FM band.
+function bandRange() {
+    const w = ((api && api.getServerConfig && api.getServerConfig()) || {}).webserver || {};
+    let lo = Number(w.tuningLowerLimit), hi = Number(w.tuningUpperLimit);
+    if (!isFinite(lo) || !isFinite(hi) || lo >= hi || lo < 40 || hi > 140) { lo = 87.5; hi = 108.0; }
+    return { lo, hi, step: 0.1 };
+}
+
+// Switch to antenna z, let it settle, then sample the live data for `ms` (default: the depth setting).
+async function measure(z, ms) {
     await sendZ(z);
     await sleep(SETTLE_MS);
     const sigs = [], psErr = [];
     let rds = 0, stereo = 0, n = 0;
-    const end = Date.now() + sampleMs();
+    const end = Date.now() + (ms || sampleMs());
     while (Date.now() < end) {
         const d = dataHandler.dataToSend || {};
         const s = Number(d.sig); if (isFinite(s)) sigs.push(s);
@@ -92,6 +104,19 @@ function pickWinner(res) {
     return pool.length ? pool[0].z : null;
 }
 
+// Save a comparison for a frequency: keep the latest measurement, and keep a small tally
+// (how many times tested, and how often each antenna won) so repeat tests show a stable winner.
+function record(freq, results, winnerZ, note) {
+    const key = freqKey(freq);
+    const prev = db.results[key] || {};
+    const wins = { ...(prev.wins || {}) };
+    if (winnerZ != null) wins[winnerZ] = (wins[winnerZ] || 0) + 1;
+    const rec = { freq, ts: Date.now(), listeners: listeners(), antennas: results, winnerZ,
+        note: note || '', tested: (prev.tested || 0) + 1, wins };
+    db.results[key] = rec; save();
+    return rec;
+}
+
 function admin(req, res, next) {
     if (req.session && req.session.isAdminAuthenticated) return next();
     res.status(403).json({ error: 'admin login required' });
@@ -111,15 +136,30 @@ router.get('/antennaadvisor/status', (req, res) => {
 
 router.get('/antennaadvisor/admin', admin, (req, res) => {
     res.json({ applicable: applicable(), hasCommandApi: hasCommandApi(), antennas: antennas(), currentZ: currentAntZ(),
-        running, listeners: listeners(), settings: db.settings, depths: Object.keys(DEPTHS),
+        running, scan, band: bandRange(), listeners: listeners(), settings: db.settings, depths: Object.keys(DEPTHS),
         perAntennaSeconds: perAntennaSeconds(), totalSeconds: Math.round(perAntennaSeconds() * Math.max(2, antennas().length) * 10) / 10,
         current: db.results[freqKey(curFreq())] || null, results: db.results });
 });
 
+// Live progress of a full-band scan (the Setup page polls this).
+router.get('/antennaadvisor/scan/status', admin, (req, res) => res.set('Cache-Control', 'no-store').json(scan));
+
 router.post('/antennaadvisor/settings', admin, (req, res) => {
-    if (DEPTHS[req.query.depth]) { db.settings.depth = req.query.depth; save(); }
+    if (DEPTHS[req.query.depth]) db.settings.depth = req.query.depth;
+    if (req.query.scanThreshold != null) { const t = Number(req.query.scanThreshold); if (isFinite(t)) db.settings.scanThreshold = Math.max(0, Math.min(80, t)); }
+    save();
     res.json({ settings: db.settings, perAntennaSeconds: perAntennaSeconds() });
 });
+
+// Admin only: forget saved comparisons. ?freq=98.3 removes one; no freq clears all.
+router.post('/antennaadvisor/clear', admin, (req, res) => {
+    if (req.query.freq != null) { const k = freqKey(Number(req.query.freq)); const had = !!db.results[k]; delete db.results[k]; save(); return res.json({ cleared: had ? 1 : 0 }); }
+    const n = Object.keys(db.results).length; db.results = {}; save();
+    res.json({ cleared: n });
+});
+
+// Admin only: stop a running full-band scan.
+router.post('/antennaadvisor/scan/cancel', admin, (req, res) => { if (scan.active) scan.cancel = true; res.json({ ok: true }); });
 
 // Admin only: run a comparison on the current frequency. Switches each antenna, measures, restores.
 router.post('/antennaadvisor/run', admin, async (req, res) => {
@@ -140,9 +180,7 @@ router.post('/antennaadvisor/run', admin, async (req, res) => {
         const winnerZ = pickWinner(results);
         results.forEach(r => { r.winner = r.z === winnerZ; });
         const changed = curFreq() != null && Math.abs(curFreq() - freq) > 0.05;
-        const rec = { freq, ts: Date.now(), listeners: listeners(), antennas: results, winnerZ,
-            note: changed ? 'the frequency changed during the test, so the result may be unreliable' : '' };
-        db.results[freqKey(freq)] = rec; save();
+        const rec = record(freq, results, winnerZ, changed ? 'the frequency changed during the test, so the result may be unreliable' : '');
         logInfo(`[Antenna Advisor] winner on ${freq.toFixed(1)} MHz: ${(results.find(r => r.winner) || {}).name || '?'}`);
         res.json(rec);
     } catch (e) {
@@ -152,5 +190,61 @@ router.post('/antennaadvisor/run', admin, async (req, res) => {
     } finally { running = false; }
 });
 
+// Quickly read the current signal (average over ~600 ms) to decide if a station is present.
+async function signalHere() {
+    await sleep(400);                                            // let the tuner settle on the new frequency
+    const sigs = [];
+    const end = Date.now() + 600;
+    while (Date.now() < end) { const s = Number((dataHandler.dataToSend || {}).sig); if (isFinite(s)) sigs.push(s); await sleep(STEP_MS); }
+    return sigs.length ? sigs.reduce((a, b) => a + b, 0) / sigs.length : null;
+}
+
+// Admin only: sweep the band and compare antennas wherever a signal is found (quick depth).
+// Starts in the background and answers right away; the page polls /antennaadvisor/scan/status.
+router.post('/antennaadvisor/scan', admin, async (req, res) => {
+    const ants = antennas();
+    if (ants.length < 2) return res.status(409).json({ error: 'This tuner has fewer than two antennas, so there is nothing to compare.' });
+    if (!hasCommandApi()) return res.status(501).json({ error: 'This FM-DX build does not expose the plugin command API, so the antenna cannot be switched.' });
+    if (running || scan.active) return res.status(409).json({ error: 'A comparison or scan is already running.' });
+
+    const { lo, hi, step } = bandRange();
+    const threshold = Number(db.settings.scanThreshold);
+    const total = Math.round((hi - lo) / step) + 1;
+    const originalFreq = curFreq();
+    const originalAnt = currentAntZ();
+    running = true;
+    scan = { active: true, cancel: false, done: 0, total, found: 0, current: null, startedAt: Date.now() };
+    logInfo(`[Antenna Advisor] full-band scan ${lo.toFixed(1)}-${hi.toFixed(1)} MHz, ${total} channels, signal ≥ ${threshold} dBf (${listeners()} listening)`);
+    res.json({ started: true, total, band: { lo, hi }, threshold });
+
+    (async () => {
+        try {
+            for (let i = 0; i < total; i++) {
+                if (scan.cancel) break;
+                const f = Math.round((lo + i * step) * 10) / 10;
+                scan.current = f; scan.done = i;
+                await tuneTo(f);
+                const sig = await signalHere();
+                if (sig != null && sig >= threshold) {
+                    const results = [];
+                    for (const a of ants) results.push({ name: a.name, ...(await measure(a.z, DEPTHS.quick)) });
+                    const winnerZ = pickWinner(results);
+                    results.forEach(r => { r.winner = r.z === winnerZ; });
+                    record(f, results, winnerZ, 'full-band scan (quick)');
+                    scan.found++;
+                }
+            }
+            scan.done = scan.cancel ? scan.done : total;
+        } catch (e) {
+            logWarn(`[Antenna Advisor] scan failed: ${e.message}`);
+        } finally {
+            try { await sendZ(originalAnt); } catch (_) { /* best effort */ }
+            try { if (originalFreq != null) await tuneTo(originalFreq); } catch (_) { /* best effort */ }
+            logInfo(`[Antenna Advisor] full-band scan ${scan.cancel ? 'cancelled' : 'finished'}: ${scan.found} station(s) compared`);
+            scan.active = false; scan.current = null; running = false;
+        }
+    })();
+});
+
 logInfo(`[Antenna Advisor] ${applicable() ? 'active, ' + antennas().length + ' antennas' + (hasCommandApi() ? '' : ' - but this FM-DX build has no plugin command API, so it cannot switch') : 'idle: this tuner has a single antenna'}`);
-module.exports = { _test: { antennas, pickWinner, measure, applicable } };
+module.exports = { _test: { antennas, pickWinner, measure, applicable, record, bandRange, getDb: () => db, setDb: d => { db = d; } } };
