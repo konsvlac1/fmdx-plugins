@@ -35,8 +35,9 @@
     }
 
     // ---------- Setup page (admin) ----------
-    function resultTable(rec) {
-        if (!rec || !rec.antennas) return '<div class="kv-empty">No comparison yet on this frequency. Press “Compare now”.</div>';
+    const fmtFreq = f => (f == null ? null : Number(f).toFixed(1) + ' MHz');
+    function resultTable(rec, freq) {
+        if (!rec || !rec.antennas) return `<div class="kv-empty">No comparison yet on <b>${freq ? esc(freq) : 'this frequency'}</b>. Press “Compare now”.</div>`;
         const rows = rec.antennas.map(r => `<tr${r.winner ? ' style="color:#8d8;font-weight:700"' : ''}>
             <td>${r.winner ? '🏆 ' : ''}${esc(r.name)}</td>
             <td>${r.sigAvg == null ? '–' : r.sigAvg + ' dBf'}</td>
@@ -83,8 +84,8 @@
             <h3>How thorough</h3><div>${depthBtns}</div>
             <div class="kv-sub">Measures each antenna for about <b>${a.perAntennaSeconds}s</b> — roughly <b>${a.totalSeconds}s</b> total for ${a.antennas.length} antennas.</div>
             ${a.listeners ? `<p style="color:#fc6">⚠️ ${a.listeners} listener(s) connected — a comparison briefly flickers their audio while it switches antennas.</p>` : ''}
-            <div style="margin-top:8px"><button data-act="run">▶ Compare now (current frequency)</button></div>
-            <h3>Result</h3><div class="aa-result">${resultTable(a.current)}</div>
+            <div style="margin-top:8px">${a.currentFreq != null ? `Tuned now: <b>${esc(fmtFreq(a.currentFreq))}</b> · ` : ''}<button data-act="run">▶ Compare now${a.currentFreq != null ? ' (' + esc(fmtFreq(a.currentFreq)) + ')' : ''}</button></div>
+            <h3>Result</h3><div class="aa-result">${resultTable(a.current, fmtFreq(a.currentFreq))}</div>
             <h3>Full-band scan</h3>${scanBlock(a)}
             ${recs.length ? `<h3>Recent comparisons <button class="aa-link" data-act="clearall">Clear all</button></h3>
                 <table><tr><th>Frequency</th><th>Best antenna</th><th>Consistency</th><th>When</th><th></th></tr>${

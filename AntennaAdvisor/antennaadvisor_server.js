@@ -135,7 +135,7 @@ router.get('/antennaadvisor/status', (req, res) => {
 });
 
 router.get('/antennaadvisor/admin', admin, (req, res) => {
-    res.json({ applicable: applicable(), hasCommandApi: hasCommandApi(), antennas: antennas(), currentZ: currentAntZ(),
+    res.json({ applicable: applicable(), hasCommandApi: hasCommandApi(), antennas: antennas(), currentZ: currentAntZ(), currentFreq: curFreq(),
         running, scan, band: bandRange(), listeners: listeners(), settings: db.settings, depths: Object.keys(DEPTHS),
         perAntennaSeconds: perAntennaSeconds(), totalSeconds: Math.round(perAntennaSeconds() * Math.max(2, antennas().length) * 10) / 10,
         current: db.results[freqKey(curFreq())] || null, results: db.results });
