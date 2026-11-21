@@ -248,14 +248,74 @@ else
 fi
 
 # ---- 5) εξαρτήσεις --------------------------------------------------------
+# npm_doctor: τρέχει `npm ci`, κι αν αποτύχει εφαρμόζει ΜΟΝΟ ασφαλείς, αναστρέψιμες
+# διορθώσεις (επανάληψη σε προσωρινά σφάλματα δικτύου, έλεγχος/καθαρισμός cache,
+# ανακατασκευή node_modules, εναλλακτικά `npm install`). Το node_modules ξαναφτιάχνεται
+# πλήρως και το install έχει ήδη αντίγραφο, οπότε τίποτα δεν χάνεται. Προβλήματα που
+# θέλουν αλλαγές συστήματος ή επικίνδυνες επιλογές (build tools, δικαιώματα, χώρος δίσκου,
+# έκδοση Node) ΔΕΝ επιχειρούνται - αναφέρονται με συγκεκριμένη οδηγία. Χωρίς --force.
+npm_doctor() {
+    local log n
+    log="$(mktemp 2>/dev/null || echo "$DIR/.npm-update.log")"
+    _npm() { say "  > npm $*"; ( cd "$DIR" && run_as npm "$@" ) >"$log" 2>&1; local r=$?; tail -n 3 "$log" | sed 's/^/    | /'; return $r; }
+    _has() { grep -qiE "$1" "$log"; }
+
+    _npm ci && { rm -f "$log"; return 0; }
+
+    # --- δεν διορθώνονται με ασφάλεια από εδώ: αναφορά συγκεκριμένου βήματος, καμία αλλαγή ---
+    if _has "gyp ERR|node-gyp|prebuild-install|make: \*\*\*|collect2|MSBUILD|Visual Studio|not found.*(make|python|gcc|g\+\+)"; then
+        say ""; say "ΠΡΟΣΟΧΗ: μια εξάρτηση χρειάζεται build tools για μεταγλώττιση, οπότε το npm δεν ολοκληρώθηκε."
+        say "         Ο κώδικας του FM-DX ενημερώθηκε. Σε Raspberry Pi / Debian τρέξτε:"
+        say "             sudo apt-get install -y build-essential python3"
+        say "         και μετά 'npm ci' μέσα στο $DIR. (πλήρες log: $log)"
+        return 1
+    fi
+    if _has "EACCES|EPERM|permission denied|operation not permitted"; then
+        say ""; say "ΠΡΟΣΟΧΗ: σφάλμα δικαιωμάτων στο npm. Ο κώδικας του FM-DX ενημερώθηκε."
+        say "         Κάποιο αρχείο ανήκει σε άλλον χρήστη. Ξανατρέξτε τον updater ως '$OWNER', ή:"
+        say "             sudo chown -R $OWNER \"$DIR/node_modules\" && (cd \"$DIR\" && npm ci)"
+        say "         (πλήρες log: $log)"
+        return 1
+    fi
+    if _has "ENOSPC|no space left"; then
+        say ""; say "ΠΡΟΣΟΧΗ: ο δίσκος είναι γεμάτος, το npm δεν ολοκληρώθηκε. Ελευθερώστε χώρο και τρέξτε"
+        say "         'npm ci' μέσα στο $DIR. (πλήρες log: $log)"
+        return 1
+    fi
+    if _has "EBADENGINE|Unsupported engine|requires Node|engine \"node\""; then
+        say ""; say "ΠΡΟΣΟΧΗ: το Node.js σας είναι πολύ παλιό για το FM-DX 1.4. Εγκαταστήστε νεότερο Node LTS και"
+        say "         τρέξτε 'npm ci' μέσα στο $DIR. (πλήρες log: $log)"
+        return 1
+    fi
+
+    # --- ασφαλείς αυτόματες διορθώσεις ---
+    if _has "ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENETUNREACH|ENOTFOUND|socket hang up|network|429 Too Many"; then
+        for n in 1 2; do say "  Προσωρινό πρόβλημα δικτύου - αναμονή 5s και νέα προσπάθεια ($n/2)..."; sleep 5; _npm ci && { rm -f "$log"; return 0; }; done
+    fi
+    if _has "EINTEGRITY|integrity check|sha512|sha1-|tarball data|corrupt|checksum"; then
+        say "  Ένα αρχείο κατέβηκε χαλασμένο - έλεγχος του npm cache και νέα προσπάθεια..."
+        ( cd "$DIR" && run_as npm cache verify ) >>"$log" 2>&1 || true
+        _npm ci && { rm -f "$log"; return 0; }
+        say "  Ακόμα πρόβλημα - καθαρισμός του npm cache και νέα προσπάθεια..."
+        ( cd "$DIR" && run_as npm cache clean --force ) >>"$log" 2>&1 || true
+        _npm ci && { rm -f "$log"; return 0; }
+    fi
+    # Τελευταία λύση (καλύπτει lockfile εκτός συγχρονισμού και μισοφτιαγμένο node_modules):
+    say "  Ανακατασκευή εξαρτήσεων από την αρχή (διαγραφή node_modules - ξαναφτιάχνεται πλήρως)..."
+    ( cd "$DIR" && run_as rm -rf node_modules ) >>"$log" 2>&1 || true
+    _npm install --no-audit --no-fund && { rm -f "$log"; return 0; }
+
+    say ""; say "ΠΡΟΣΟΧΗ: το npm δεν ολοκληρώθηκε ούτε μετά τις ασφαλείς προσπάθειες. Ο κώδικας του FM-DX"
+    say "         ενημερώθηκε. Τα τελευταία μηνύματα του npm είναι πιο πάνω· τρέξτε 'npm ci' μέσα στο"
+    say "         $DIR για το πλήρες σφάλμα. (πλήρες log: $log)"
+    return 1
+}
+
 say ""
 say "Εγκατάσταση/ενημέρωση εξαρτήσεων (npm ci)..."
 say "  Αν φαίνεται να σταματά για λίγο, είναι φυσιολογικό - γράφει τα"
 say "  πακέτα στον δίσκο. Δεν έχει κολλήσει· περιμένετε λίγο."
-if ! ( cd "$DIR" && run_as npm ci ); then
-    say "ΠΡΟΣΟΧΗ: το npm ci ανέφερε πρόβλημα. Ο κώδικας ενημερώθηκε·"
-    say "         δοκιμάστε να τρέξετε 'npm ci' μόνοι σας μέσα στον φάκελο."
-fi
+npm_doctor || true
 
 # ---- 5b) έλεγχος/επιδιόρθωση ffmpeg (το npm ci το κατεβάζει κάθε φορά) -----
 # Το ffmpeg-static κατεβάζει το ffmpeg σε install script· το npm ci σβήνει το

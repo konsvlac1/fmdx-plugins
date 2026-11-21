@@ -196,14 +196,84 @@ echo.
 echo  Installing/updating dependencies (npm ci)...
 echo  If it seems to pause on "reify" for a while, that is normal - it is
 echo  usually your antivirus scanning the new files, not a freeze. Wait a minute.
+echo  If npm reports a problem, the updater tries safe fixes automatically
+echo  (retry, clean the cache, rebuild node_modules). It never forces anything.
+set "NPMLOG=%TEMP%\fmdx-npm-%RANDOM%.log"
 pushd "%DIR%"
-call npm ci
-set "NPMERR=%errorlevel%"
-popd
-if not "%NPMERR%"=="0" (
-    echo  npm ci reported a problem. The code was still updated; try
-    echo  running  npm ci  yourself inside the folder.
+call npm ci > "%NPMLOG%" 2>&1
+set "RC=%errorlevel%"
+type "%NPMLOG%"
+if "%RC%"=="0" goto :npm_end
+
+rem --- problems we must NOT auto-fix (need system changes): report, change nothing ---
+findstr /i /c:"gyp ERR" /c:"node-gyp" /c:"prebuild-install" /c:"MSBUILD" /c:"Visual Studio" "%NPMLOG%" >nul
+if not errorlevel 1 goto :npm_bt
+findstr /i /c:"EACCES" /c:"EPERM" /c:"operation not permitted" "%NPMLOG%" >nul
+if not errorlevel 1 goto :npm_perm
+findstr /i /c:"ENOSPC" /c:"no space left" "%NPMLOG%" >nul
+if not errorlevel 1 goto :npm_disk
+findstr /i /c:"EBADENGINE" /c:"Unsupported engine" /c:"requires Node" "%NPMLOG%" >nul
+if not errorlevel 1 goto :npm_engine
+
+rem --- safe automatic fixes (node_modules is fully regenerable; your config is untouched) ---
+findstr /i /c:"ETIMEDOUT" /c:"ECONNRESET" /c:"ECONNREFUSED" /c:"EAI_AGAIN" /c:"ENOTFOUND" /c:"socket hang up" /c:"network" "%NPMLOG%" >nul
+if not errorlevel 1 (
+    echo.
+    echo  Network hiccup - waiting 5 seconds and retrying...
+    timeout /t 5 /nobreak >nul
+    call npm ci > "%NPMLOG%" 2>&1
+    if not errorlevel 1 goto :npm_end
 )
+findstr /i /c:"EINTEGRITY" /c:"integrity" /c:"sha512" /c:"tarball data" /c:"corrupt" "%NPMLOG%" >nul
+if not errorlevel 1 (
+    echo.
+    echo  A download looks corrupted - checking the npm cache and retrying...
+    call npm cache verify >nul 2>&1
+    call npm ci > "%NPMLOG%" 2>&1
+    if not errorlevel 1 goto :npm_end
+    call npm cache clean --force >nul 2>&1
+    call npm ci > "%NPMLOG%" 2>&1
+    if not errorlevel 1 goto :npm_end
+)
+rem last resort (covers a lockfile out of sync or a half-written node_modules)
+echo.
+echo  Rebuilding dependencies from scratch (removing node_modules - it is fully regenerable)...
+if exist node_modules rmdir /s /q node_modules
+call npm install --no-audit --no-fund > "%NPMLOG%" 2>&1
+if not errorlevel 1 goto :npm_end
+type "%NPMLOG%"
+echo.
+echo  WARNING: npm could not finish even after the safe retries. The FM-DX code was
+echo           still updated. Run  npm ci  inside the folder to see the full error.
+goto :npm_end
+
+:npm_bt
+echo.
+echo  WARNING: a dependency needs build tools to compile, so npm could not finish.
+echo           The FM-DX code was still updated. Install build tools, then run  npm ci:
+echo             - "Desktop development with C++" from Visual Studio Build Tools, or
+echo             - a recent Node.js LTS (bundles what most packages need).
+goto :npm_end
+:npm_perm
+echo.
+echo  WARNING: npm hit a permission error. The FM-DX code was still updated.
+echo           Close anything using the folder (the running server, Explorer), open
+echo           cmd as the same Windows user, then run  npm ci  inside the folder.
+goto :npm_end
+:npm_disk
+echo.
+echo  WARNING: the disk is full, so npm could not finish. Free some space, then run
+echo           npm ci  inside the folder.
+goto :npm_end
+:npm_engine
+echo.
+echo  WARNING: your Node.js is too old for FM-DX 1.4. Install a newer Node LTS, then
+echo           run  npm ci  inside the folder.
+goto :npm_end
+
+:npm_end
+del "%NPMLOG%" >nul 2>&1
+popd
 
 rem ---- ffmpeg check/repair (npm ci re-downloads ffmpeg every run) ----------
 rem  ffmpeg-static fetches ffmpeg.exe in its install script; npm ci wipes

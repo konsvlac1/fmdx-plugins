@@ -198,14 +198,84 @@ echo.
 echo  Egkatastasi/enimerosi eksartiseon (npm ci)...
 echo  An fainetai na kollaei sto "reify" gia ligo, einai fisiologiko - sinithos
 echo  einai to antivirus pou saronei ta nea arxeia, den exei kollisei. Perimenete.
+echo  An to npm anaferei provlima, o updater dokimazei asfaleis diorthoseis monos
+echo  tou (retry, katharismos cache, anakataskevi node_modules). Den zorizei tipota.
+set "NPMLOG=%TEMP%\fmdx-npm-%RANDOM%.log"
 pushd "%DIR%"
-call npm ci
-set "NPMERR=%errorlevel%"
-popd
-if not "%NPMERR%"=="0" (
-    echo  To npm ci anefere provlima. O kodikas enimerothike; dokimaste na
-    echo  treksete  npm ci  monoi sas mesa ston fakelo.
+call npm ci > "%NPMLOG%" 2>&1
+set "RC=%errorlevel%"
+type "%NPMLOG%"
+if "%RC%"=="0" goto :npm_end
+
+rem --- provlimata pou DEN diorthonontai me asfaleia edo: anafora, kamia allagi ---
+findstr /i /c:"gyp ERR" /c:"node-gyp" /c:"prebuild-install" /c:"MSBUILD" /c:"Visual Studio" "%NPMLOG%" >nul
+if not errorlevel 1 goto :npm_bt
+findstr /i /c:"EACCES" /c:"EPERM" /c:"operation not permitted" "%NPMLOG%" >nul
+if not errorlevel 1 goto :npm_perm
+findstr /i /c:"ENOSPC" /c:"no space left" "%NPMLOG%" >nul
+if not errorlevel 1 goto :npm_disk
+findstr /i /c:"EBADENGINE" /c:"Unsupported engine" /c:"requires Node" "%NPMLOG%" >nul
+if not errorlevel 1 goto :npm_engine
+
+rem --- asfaleis automates diorthoseis (to node_modules ksanaftiaxnetai pliros) ---
+findstr /i /c:"ETIMEDOUT" /c:"ECONNRESET" /c:"ECONNREFUSED" /c:"EAI_AGAIN" /c:"ENOTFOUND" /c:"socket hang up" /c:"network" "%NPMLOG%" >nul
+if not errorlevel 1 (
+    echo.
+    echo  Provlima diktiou - anamoni 5 defterolepta kai nea prospatheia...
+    timeout /t 5 /nobreak >nul
+    call npm ci > "%NPMLOG%" 2>&1
+    if not errorlevel 1 goto :npm_end
 )
+findstr /i /c:"EINTEGRITY" /c:"integrity" /c:"sha512" /c:"tarball data" /c:"corrupt" "%NPMLOG%" >nul
+if not errorlevel 1 (
+    echo.
+    echo  Ena arxeio katevike xalasmeno - elegxos tou npm cache kai nea prospatheia...
+    call npm cache verify >nul 2>&1
+    call npm ci > "%NPMLOG%" 2>&1
+    if not errorlevel 1 goto :npm_end
+    call npm cache clean --force >nul 2>&1
+    call npm ci > "%NPMLOG%" 2>&1
+    if not errorlevel 1 goto :npm_end
+)
+rem teleftaia lisi (kalyptei lockfile ektos sygxronismou i misoftiagmeno node_modules)
+echo.
+echo  Anakataskevi eksartiseon apo tin arxi (diagrafi node_modules - ksanaftiaxnetai)...
+if exist node_modules rmdir /s /q node_modules
+call npm install --no-audit --no-fund > "%NPMLOG%" 2>&1
+if not errorlevel 1 goto :npm_end
+type "%NPMLOG%"
+echo.
+echo  PROSOXI: to npm den oloklirothike oute meta tis asfaleis prospatheies. O kodikas
+echo           tou FM-DX enimerothike. Trekste  npm ci  mesa ston fakelo gia to plires sfalma.
+goto :npm_end
+
+:npm_bt
+echo.
+echo  PROSOXI: mia eksartisi xreiazetai build tools gia metaglottisi, to npm den oloklirothike.
+echo           O kodikas enimerothike. Egkatastiste build tools kai meta trekste  npm ci:
+echo             - "Desktop development with C++" apo ta Visual Studio Build Tools, i
+echo             - ena prosfato Node.js LTS (perilamvanei auta pou xreiazontai ta perissotera).
+goto :npm_end
+:npm_perm
+echo.
+echo  PROSOXI: sfalma dikaiomaton sto npm. O kodikas tou FM-DX enimerothike.
+echo           Kleiste oti xrisimopoiei ton fakelo (ton server pou trexei, parathyra Explorer),
+echo           anoikste cmd os o idios xristis, kai trekste  npm ci  mesa ston fakelo.
+goto :npm_end
+:npm_disk
+echo.
+echo  PROSOXI: o diskos einai gematos, to npm den oloklirothike. Eleftheroste xoro kai
+echo           trekste  npm ci  mesa ston fakelo.
+goto :npm_end
+:npm_engine
+echo.
+echo  PROSOXI: to Node.js sas einai poli palio gia to FM-DX 1.4. Egkatastiste neotero Node
+echo           LTS kai trekste  npm ci  mesa ston fakelo.
+goto :npm_end
+
+:npm_end
+del "%NPMLOG%" >nul 2>&1
+popd
 
 rem ---- elegxos/episkevi ffmpeg (to npm ci to katevazei kathe fora) ---------
 rem  To ffmpeg-static katevazei to ffmpeg.exe sto install script tou. To npm ci

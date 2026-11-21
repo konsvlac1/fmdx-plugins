@@ -248,14 +248,76 @@ else
 fi
 
 # ---- 5) dependencies ------------------------------------------------------
+# npm_doctor: run `npm ci`, and if it fails apply ONLY safe, reversible fixes
+# (retry transient network errors, verify/clean the cache, rebuild node_modules,
+# fall back to `npm install`). node_modules is fully regenerable and the install
+# was already backed up, so these cannot lose anything. Problems that need system
+# changes or risky flags (build tools, permissions, disk, Node version) are NOT
+# attempted - they are reported with a specific instruction. No --force / no
+# --legacy-peer-deps (those can leave a silently broken install).
+npm_doctor() {
+    local log n
+    log="$(mktemp 2>/dev/null || echo "$DIR/.npm-update.log")"
+    _npm() { say "  > npm $*"; ( cd "$DIR" && run_as npm "$@" ) >"$log" 2>&1; local r=$?; tail -n 3 "$log" | sed 's/^/    | /'; return $r; }
+    _has() { grep -qiE "$1" "$log"; }
+
+    _npm ci && { rm -f "$log"; return 0; }
+
+    # --- cannot be fixed safely from here: report a specific next step, change nothing ---
+    if _has "gyp ERR|node-gyp|prebuild-install|make: \*\*\*|collect2|MSBUILD|Visual Studio|not found.*(make|python|gcc|g\+\+)"; then
+        say ""; say "WARNING: a dependency needs build tools to compile, so npm could not finish."
+        say "         The FM-DX code was still updated. On a Raspberry Pi / Debian, run:"
+        say "             sudo apt-get install -y build-essential python3"
+        say "         then run 'npm ci' inside $DIR. (full log: $log)"
+        return 1
+    fi
+    if _has "EACCES|EPERM|permission denied|operation not permitted"; then
+        say ""; say "WARNING: npm hit a permission error. The FM-DX code was still updated."
+        say "         A file is owned by another user. Re-run the updater as '$OWNER', or:"
+        say "             sudo chown -R $OWNER \"$DIR/node_modules\" && (cd \"$DIR\" && npm ci)"
+        say "         (full log: $log)"
+        return 1
+    fi
+    if _has "ENOSPC|no space left"; then
+        say ""; say "WARNING: the disk is full, so npm could not finish. Free some space, then run"
+        say "         'npm ci' inside $DIR. (full log: $log)"
+        return 1
+    fi
+    if _has "EBADENGINE|Unsupported engine|requires Node|engine \"node\""; then
+        say ""; say "WARNING: your Node.js is too old for FM-DX 1.4. Install a newer Node LTS, then run"
+        say "         'npm ci' inside $DIR. (full log: $log)"
+        return 1
+    fi
+
+    # --- safe automatic fixes ---
+    if _has "ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|ENETUNREACH|ENOTFOUND|socket hang up|network|429 Too Many"; then
+        for n in 1 2; do say "  Network hiccup - waiting 5s and retrying ($n/2)..."; sleep 5; _npm ci && { rm -f "$log"; return 0; }; done
+    fi
+    if _has "EINTEGRITY|integrity check|sha512|sha1-|tarball data|corrupt|checksum"; then
+        say "  A download looks corrupted - verifying the npm cache and retrying..."
+        ( cd "$DIR" && run_as npm cache verify ) >>"$log" 2>&1 || true
+        _npm ci && { rm -f "$log"; return 0; }
+        say "  Still bad - cleaning the npm cache and retrying..."
+        ( cd "$DIR" && run_as npm cache clean --force ) >>"$log" 2>&1 || true
+        _npm ci && { rm -f "$log"; return 0; }
+    fi
+    # Last resort (covers a lockfile out of sync and a half-written node_modules):
+    # rebuild dependencies from scratch. node_modules is regenerable; your code/config are untouched.
+    say "  Rebuilding dependencies from scratch (removing node_modules - it is fully regenerable)..."
+    ( cd "$DIR" && run_as rm -rf node_modules ) >>"$log" 2>&1 || true
+    _npm install --no-audit --no-fund && { rm -f "$log"; return 0; }
+
+    say ""; say "WARNING: npm could not finish even after the safe retries. The FM-DX code was still"
+    say "         updated. The last npm messages are above; run 'npm ci' inside $DIR to see the"
+    say "         full error. (full log: $log)"
+    return 1
+}
+
 say ""
 say "Installing/updating dependencies (npm ci)..."
 say "  If it seems to pause for a while, that is normal - npm is writing the"
 say "  packages to disk. It is not frozen; give it a minute."
-if ! ( cd "$DIR" && run_as npm ci ); then
-    say "WARNING: npm ci reported a problem. The code was still updated;"
-    say "         try running 'npm ci' yourself inside the folder."
-fi
+npm_doctor || true
 
 # ---- 5b) ffmpeg check/repair (npm ci re-downloads ffmpeg each run) --------
 # ffmpeg-static fetches its ffmpeg binary in an install script; npm ci wipes
