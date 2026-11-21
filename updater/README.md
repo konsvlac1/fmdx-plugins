@@ -43,3 +43,13 @@ curl -Ls https://raw.githubusercontent.com/konsvlac1/fmdx-plugins/main/updater/u
 **Your own edits are protected.** If you changed any core files yourself (a theme, a tweak, the plugin hook lines), the updater detects them and sets a copy aside in the backup — under `custom/` (files you changed, git installs) or `replaced/` (any core file replaced during a ZIP update) — so an update can never silently overwrite something you customized.
 
 If a run ever says the plugin hook lines were reset, open **Setup** in FM-DX and press **🔧 Fix it now** in each plugin.
+
+### If npm has a problem
+
+If `npm ci` fails, the updater tries to fix it **safely and automatically** before giving up:
+
+- a **network hiccup** → it waits and retries;
+- a **corrupted download** → it checks/cleans the npm cache and retries;
+- an **out-of-sync lock file or a half-finished `node_modules`** → it rebuilds the dependencies from scratch (your code and settings are untouched — `node_modules` is simply re-downloaded).
+
+For problems it should **not** touch on its own, it changes nothing and tells you exactly what to do: missing **build tools**, a **permission** problem, a **full disk**, or a **too-old Node.js**. It never forces an install (no `--force`), so it can't leave you with a half-broken one.
