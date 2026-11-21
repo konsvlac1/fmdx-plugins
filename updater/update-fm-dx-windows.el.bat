@@ -222,7 +222,7 @@ findstr /i /c:"ETIMEDOUT" /c:"ECONNRESET" /c:"ECONNREFUSED" /c:"EAI_AGAIN" /c:"E
 if not errorlevel 1 (
     echo.
     echo  Provlima diktiou - anamoni 5 defterolepta kai nea prospatheia...
-    timeout /t 5 /nobreak >nul
+    ping -n 6 127.0.0.1 >nul
     call npm ci > "%NPMLOG%" 2>&1
     if not errorlevel 1 goto :npm_end
 )
