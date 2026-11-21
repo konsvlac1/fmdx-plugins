@@ -23,11 +23,12 @@ const SETTLE_MS = 1500;          // let the AGC settle after a switch
 const STEP_MS = 200;             // sample period
 const KEEP = 300;                // remember results for this many frequencies
 const DEPTHS = { quick: 2000, standard: 3000, thorough: 5000 };   // how long to measure each antenna
+const SCAN_SETTLE_MS = 700;      // wait after tuning before reading the signal (longer = no stale reading from the previous channel)
 
-let db = { settings: { depth: 'standard', scanThreshold: 15 }, results: {} };
+let db = { settings: { depth: 'standard', scanThreshold: 30 }, results: {} };
 try { db = { ...db, ...JSON.parse(fs.readFileSync(DATA, 'utf8')) }; } catch (_) { /* first run */ }
 if (!DEPTHS[db.settings.depth]) db.settings.depth = 'standard';
-if (!(Number(db.settings.scanThreshold) >= 0)) db.settings.scanThreshold = 15;
+if (!(Number(db.settings.scanThreshold) >= 0)) db.settings.scanThreshold = 30;
 let running = false;
 // Progress of a full-band scan (admin starts it, the page polls it).
 let scan = { active: false, cancel: false, done: 0, total: 0, found: 0, current: null, startedAt: 0 };
@@ -192,7 +193,7 @@ router.post('/antennaadvisor/run', admin, async (req, res) => {
 
 // Quickly read the current signal (average over ~600 ms) to decide if a station is present.
 async function signalHere() {
-    await sleep(400);                                            // let the tuner settle on the new frequency
+    await sleep(SCAN_SETTLE_MS);                                 // let the tuner settle on the new frequency
     const sigs = [];
     const end = Date.now() + 600;
     while (Date.now() < end) { const s = Number((dataHandler.dataToSend || {}).sig); if (isFinite(s)) sigs.push(s); await sleep(STEP_MS); }
@@ -224,6 +225,7 @@ router.post('/antennaadvisor/scan', admin, async (req, res) => {
                 const f = Math.round((lo + i * step) * 10) / 10;
                 scan.current = f; scan.done = i;
                 await tuneTo(f);
+                await sendZ(originalAnt);          // always probe on the same reference antenna, so detection is consistent
                 const sig = await signalHere();
                 if (sig != null && sig >= threshold) {
                     const results = [];
